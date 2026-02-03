@@ -1,0 +1,192 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800;900&display=swap");
+
+:root {
+  --font-inter: "Inter", sans-serif;
+  --font-outfit: "Outfit", sans-serif;
+
+  /* NVFC Brand Colors */
+  --nvfc-primary: #1a1f71;
+  --nvfc-secondary: #ffd700;
+  --nvfc-accent: #e63946;
+  --nvfc-dark: #0a0e27;
+  --nvfc-light: #f8f9fa;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-inter);
+  background-color: var(--nvfc-light);
+  color: var(--nvfc-dark);
+  overflow-x: hidden;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--nvfc-light);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--nvfc-primary);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--nvfc-accent);
+}
+
+/* Glassmorphism utility */
+.glass {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.glass-dark {
+  background: rgba(10, 14, 39, 0.8);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(
+    135deg,
+    var(--nvfc-primary) 0%,
+    var(--nvfc-accent) 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Shimmer effect for loading states */
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.2) 20%,
+    rgba(255, 255, 255, 0.5) 60%,
+    rgba(255, 255, 255, 0)
+  );
+  animation: shimmer 2s infinite;
+  background-size: 200% 100%;
+}
+
+/* Card hover effects */
+.card-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-hover:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 40px rgba(26, 31, 113, 0.2);
+}
+
+/* Button animations */
+.btn-primary {
+  @apply bg-nvfc-primary text-white px-6 py-3 rounded-lg font-semibold;
+  @apply transition-all duration-300 ease-in-out;
+  @apply hover:bg-nvfc-accent hover:shadow-lg hover:scale-105;
+  @apply active:scale-95;
+}
+
+.btn-secondary {
+  @apply bg-nvfc-secondary text-nvfc-dark px-6 py-3 rounded-lg font-semibold;
+  @apply transition-all duration-300 ease-in-out;
+  @apply hover:bg-yellow-500 hover:shadow-lg hover:scale-105;
+  @apply active:scale-95;
+}
+
+.btn-ghost {
+  @apply border-2 border-nvfc-primary text-nvfc-primary px-6 py-3 rounded-lg font-semibold;
+  @apply transition-all duration-300 ease-in-out;
+  @apply hover:bg-nvfc-primary hover:text-white hover:shadow-lg;
+}
+
+/* Section spacing */
+.section-padding {
+  @apply py-16 md:py-24 px-4 md:px-8;
+}
+
+/* Container */
+.container-custom {
+  @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+}
+
+/* Skeleton loader */
+.skeleton {
+  @apply bg-gray-200 animate-pulse rounded;
+}
+
+/* Focus states for accessibility */
+*:focus-visible {
+  @apply outline-none ring-2 ring-nvfc-accent ring-offset-2;
+}
+
+/* Page transitions */
+.page-transition {
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+/* Hero section styles */
+.hero-overlay {
+  background: linear-gradient(
+    135deg,
+    rgba(10, 14, 39, 0.95) 0%,
+    rgba(26, 31, 113, 0.85) 100%
+  );
+}
+
+/* Match ticker styles */
+.ticker-scroll {
+  animation: scroll 30s linear infinite;
+}
+
+@keyframes scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+/* Responsive typography */
+h1 {
+  @apply text-4xl md:text-5xl lg:text-6xl font-bold font-display;
+}
+
+h2 {
+  @apply text-3xl md:text-4xl lg:text-5xl font-bold font-display;
+}
+
+h3 {
+  @apply text-2xl md:text-3xl lg:text-4xl font-semibold font-display;
+}
+
+h4 {
+  @apply text-xl md:text-2xl font-semibold;
+}
+
+p {
+  @apply text-base md:text-lg leading-relaxed;
+}
