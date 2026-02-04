@@ -1,75 +1,127 @@
-import { 
-  signInWithEmailAndPassword,
+import {
   createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
   signOut,
+  sendPasswordResetEmail,
   onAuthStateChanged,
   User,
-  updateProfile,
-  sendPasswordResetEmail,
 } from "firebase/auth";
-import { doc, setDoc, getDoc } from "firebase/firestore";
-import { auth, db, collections } from "./firebase";
+import { doc, setDoc, getDoc, Timestamp } from "firebase/firestore";
+import { auth, db } from "./firebase";
+import { ROLES, Role, USER_STATUS, UserStatus } from "./roles";
+import { getSuperAdminUID, setSuperAdminUID, isSuperAdmin, logAudit } from "./admin";
+import type { UserProfile } from "./admin";
 
-export interface UserProfile {
-  uid: string;
-  email: string;
-  displayName: string;
-  role: "user" | "admin";
-  createdAt: Date;
-  photoURL?: string;
-}
-
-// Sign up new user
-export const signUp = async (
+/**
+ * Sign up a new user
+ * First user becomes Super Admin automatically
+ */
+export async function signUp(
   email: string,
   password: string,
   displayName: string
-): Promise<User> => {
-  const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+): Promise<User> {
+  const userCredential = await createUserWithEmailAndPassword(
+    auth,
+    email,
+    password
+  );
   const user = userCredential.user;
 
-  // Update profile
-  await updateProfile(user, { displayName });
+  // Check if this is the first user (Super Admin)
+  const superAdminUID = await getSuperAdminUID();
+  const isFirstUser = !superAdminUID;
 
-  // Create user document in Firestore
+  let role: Role = ROLES.USER;
+
+  if (isFirstUser) {
+    // First user becomes Super Admin
+    role = ROLES.SUPER_ADMIN;
+    await setSuperAdminUID(user.uid);
+  }
+
+  // Create user profile in Firestore
   const userProfile: UserProfile = {
     uid: user.uid,
-    email: user.email!,
+    email: user.email || "",
     displayName,
-    role: "user",
-    createdAt: new Date(),
+    role,
+    status: USER_STATUS.ACTIVE,
+    createdAt: Timestamp.now(),
+    updatedAt: Timestamp.now(),
   };
 
-  await setDoc(doc(db, collections.users, user.uid), userProfile);
+  await setDoc(doc(db, "users", user.uid), userProfile);
+
+  // Log the signup
+  await logAudit({
+    userId: user.uid,
+    userName: displayName,
+    action: isFirstUser ? "SUPER_ADMIN_CREATED" : "USER_SIGNUP",
+    resource: "user",
+    resourceId: user.uid,
+    timestamp: Timestamp.now(),
+  });
 
   return user;
-};
-
-// Sign in existing user
-export const signIn = async (email: string, password: string): Promise<User> => {
+}
+/**
+ * Sign in an existing user
+ * Checks if user is blocked
+ */
+export async function signIn(email: string, password: string): Promise<User> {
   const userCredential = await signInWithEmailAndPassword(auth, email, password);
-  return userCredential.user;
-};
+  const user = userCredential.user;
+
+  // Check if user is blocked
+  const profile = await getUserProfile(user.uid);
+  if (profile?.status === USER_STATUS.BLOCKED) {
+    await signOut(auth);
+    throw new Error("Your account has been blocked. Please contact support.");
+  }
+
+  // Log the signin
+  await logAudit({
+    userId: user.uid,
+    userName: profile?.displayName || "Unknown",
+    action: "USER_SIGNIN",
+    resource: "auth",
+    resourceId: user.uid,
+    timestamp: Timestamp.now(),
+  });
+
+  return user;
+}
 
 // Sign out
 export const logout = async (): Promise<void> => {
   await signOut(auth);
 };
-
-// Get user profile from Firestore
-export const getUserProfile = async (uid: string): Promise<UserProfile | null> => {
-  const userDoc = await getDoc(doc(db, collections.users, uid));
+/**
+ * Get user profile from Firestore
+ */
+export async function getUserProfile(uid: string): Promise<UserProfile | null> {
+  const userDoc = await getDoc(doc(db, "users", uid));
   if (userDoc.exists()) {
     return userDoc.data() as UserProfile;
   }
   return null;
-};
+}
 
-// Check if user is admin
-export const isAdmin = async (uid: string): Promise<boolean> => {
+/**
+ * Check if user is admin or super admin
+ */
+export async function isAdmin(uid: string): Promise<boolean> {
   const profile = await getUserProfile(uid);
-  return profile?.role === "admin";
-};
+  return profile?.role === ROLES.ADMIN || profile?.role === ROLES.SUPER_ADMIN;
+}
+
+/**
+ * Check if user is super admin
+ */
+export async function checkIsSuperAdmin(uid: string): Promise<boolean> {
+  return await isSuperAdmin(uid);
+}
 
 // Password reset
 export const resetPassword = async (email: string): Promise<void> => {

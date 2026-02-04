@@ -1,36 +1,91 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { User } from "firebase/auth";
-import { onAuthChange, getUserProfile, UserProfile } from "@/lib/auth";
+import { useState, useEffect } from "react";
+import { User, onAuthStateChanged } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { getUserProfile, checkIsSuperAdmin } from "@/lib/auth";
+import { ROLES, Role, hasPermission, Permission, getRolePermissions } from "@/lib/roles";
+import type { UserProfile } from "@/lib/admin";
 
-export const useAuth = () => {
-  const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
+interface AuthState {
+  user: User | null;
+  profile: UserProfile | null;
+  loading: boolean;
+  isSuperAdmin: boolean;
+  isAdmin: boolean;
+  permissions: Permission[];
+}
+
+export function useAuth() {
+  const [authState, setAuthState] = useState<AuthState>({
+    user: null,
+    profile: null,
+    loading: true,
+    isSuperAdmin: false,
+    isAdmin: false,
+    permissions: [],
+  });
 
   useEffect(() => {
-    const unsubscribe = onAuthChange(async (user) => {
-      setUser(user);
-      
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        const userProfile = await getUserProfile(user.uid);
-        setProfile(userProfile);
+        // Fetch user profile and role
+        const profile = await getUserProfile(user.uid);
+        const isSuperAdmin = await checkIsSuperAdmin(user.uid);
+        const isAdmin = profile?.role === ROLES.ADMIN || profile?.role === ROLES.SUPER_ADMIN;
+        const permissions = profile?.role ? getRolePermissions(profile.role) : [];
+
+        setAuthState({
+          user,
+          profile,
+          loading: false,
+          isSuperAdmin,
+          isAdmin,
+          permissions,
+        });
       } else {
-        setProfile(null);
+        setAuthState({
+          user: null,
+          profile: null,
+          loading: false,
+          isSuperAdmin: false,
+          isAdmin: false,
+          permissions: [],
+        });
       }
-      
-      setLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
 
-  return {
-    user,
-    profile,
-    loading,
-    isAuthenticated: !!user,
-    isAdmin: profile?.role === "admin",
+  /**
+   * Check if user has a specific permission
+   */
+  const can = (permission: Permission): boolean => {
+    if (!authState.profile) return false;
+    return hasPermission(authState.profile.role, permission);
   };
-};
+
+  /**
+   * Check if user has all specified permissions
+   */
+  const canAll = (permissions: Permission[]): boolean => {
+    if (!authState.profile) return false;
+    return permissions.every((permission) => hasPermission(authState.profile!.role, permission));
+  };
+
+  /**
+   * Check if user has any of the specified permissions
+   */
+  const canAny = (permissions: Permission[]): boolean => {
+    if (!authState.profile) return false;
+    return permissions.some((permission) => hasPermission(authState.profile!.role, permission));
+  };
+
+  return {
+    ...authState,
+    can,
+    canAll,
+    canAny,
+  };
+}

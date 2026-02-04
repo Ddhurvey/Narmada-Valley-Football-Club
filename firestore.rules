@@ -1,0 +1,209 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    function getSuperAdminUID() {
+      return get(/databases/$(database)/documents/roles/config).data.lockedSuperAdminUID;
+    }
+    
+    function isSuperAdmin() {
+      return isAuthenticated() && request.auth.uid == getSuperAdminUID();
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && (
+        getUserData().role == 'ADMIN' || 
+        getUserData().role == 'SUPER_ADMIN'
+      );
+    }
+    
+    function isActiveUser() {
+      return isAuthenticated() && getUserData().status == 'active';
+    }
+    
+    // Roles collection - SUPER ADMIN UID IS LOCKED
+    match /roles/{document} {
+      // Only Super Admin can read
+      allow read: if isSuperAdmin();
+      
+      // CRITICAL: Prevent any writes to Super Admin UID
+      // Can only be created once, never modified
+      allow create: if !exists(/databases/$(database)/documents/roles/config);
+      allow update, delete: if false; // NEVER allow updates or deletes
+    }
+    
+    // Users collection
+    match /users/{userId} {
+      // Users can read their own profile
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      
+      // Super Admin can read all users
+      allow read: if isSuperAdmin();
+      
+      // Users can create their own profile during signup
+      allow create: if isAuthenticated() && 
+                      request.auth.uid == userId &&
+                      request.resource.data.role == 'USER' &&
+                      request.resource.data.status == 'active';
+      
+      // Users can update their own profile (but not role or status)
+      allow update: if isAuthenticated() && 
+                      request.auth.uid == userId &&
+                      request.resource.data.role == resource.data.role &&
+                      request.resource.data.status == resource.data.status;
+      
+      // CRITICAL: Prevent role escalation
+      // Only Super Admin can change roles
+      allow update: if isSuperAdmin() && 
+                      // Cannot modify Super Admin's role
+                      userId != getSuperAdminUID();
+      
+      // Only Super Admin can block/unblock users
+      allow update: if isSuperAdmin() && 
+                      // Cannot block Super Admin
+                      userId != getSuperAdminUID();
+      
+      // No one can delete users (soft delete via status instead)
+      allow delete: if false;
+    }
+    
+    // Audit logs
+    match /auditLogs/{logId} {
+      // Only Super Admin can read audit logs
+      allow read: if isSuperAdmin();
+      
+      // System can create audit logs (via server/cloud functions)
+      // Or authenticated users can log their own actions
+      allow create: if isAuthenticated();
+      
+      // No updates or deletes to maintain audit integrity
+      allow update, delete: if false;
+    }
+    
+    // Layouts collection
+    match /layouts/{layoutId} {
+      // Anyone can read active layouts
+      allow read: if true;
+      
+      // Only admins can create/update layouts
+      allow create, update: if isAdmin() && isActiveUser();
+      
+      // Only Super Admin can delete layouts
+      allow delete: if isSuperAdmin();
+    }
+    
+    // Themes collection
+    match /themes/{themeId} {
+      // Anyone can read themes
+      allow read: if true;
+      
+      // Only admins can manage themes
+      allow create, update: if isAdmin() && isActiveUser();
+      allow delete: if isSuperAdmin();
+    }
+    
+    // Events collection
+    match /events/{eventId} {
+      // Anyone can read events
+      allow read: if true;
+      
+      // Only admins can manage events
+      allow create, update: if isAdmin() && isActiveUser();
+      allow delete: if isSuperAdmin();
+    }
+    
+    // News/Blog posts
+    match /news/{newsId} {
+      // Anyone can read published news
+      allow read: if true;
+      
+      // Only admins can create/update news
+      allow create, update: if isAdmin() && isActiveUser();
+      allow delete: if isSuperAdmin();
+    }
+    
+    // Fixtures
+    match /fixtures/{fixtureId} {
+      // Anyone can read fixtures
+      allow read: if true;
+      
+      // Only admins can manage fixtures
+      allow create, update, delete: if isAdmin() && isActiveUser();
+    }
+    
+    // Players
+    match /players/{playerId} {
+      // Anyone can read player profiles
+      allow read: if true;
+      
+      // Only admins can manage players
+      allow create, update, delete: if isAdmin() && isActiveUser();
+    }
+    
+    // Tickets
+    match /tickets/{ticketId} {
+      // Users can read their own tickets
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      
+      // Admins can read all tickets
+      allow read: if isAdmin();
+      
+      // Users can create tickets
+      allow create: if isAuthenticated() && 
+                      request.resource.data.userId == request.auth.uid;
+      
+      // Only admins can update tickets (status changes, etc.)
+      allow update: if isAdmin() && isActiveUser();
+      
+      // No deletes
+      allow delete: if false;
+    }
+    
+    // Orders
+    match /orders/{orderId} {
+      // Users can read their own orders
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      
+      // Admins can read all orders
+      allow read: if isAdmin();
+      
+      // Users can create orders
+      allow create: if isAuthenticated() && 
+                      request.resource.data.userId == request.auth.uid;
+      
+      // Only admins can update orders
+      allow update: if isAdmin() && isActiveUser();
+      
+      // No deletes
+      allow delete: if false;
+    }
+    
+    // Memberships
+    match /memberships/{membershipId} {
+      // Users can read their own membership
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      
+      // Admins can read all memberships
+      allow read: if isAdmin();
+      
+      // Users can create their membership
+      allow create: if isAuthenticated() && 
+                      request.resource.data.userId == request.auth.uid;
+      
+      // Admins can update memberships
+      allow update: if isAdmin() && isActiveUser();
+      
+      // No deletes
+      allow delete: if false;
+    }
+  }
+}
