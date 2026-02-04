@@ -2,159 +2,346 @@
 
 import React, { useState } from "react";
 import Card from "@/components/ui/Card";
+import Button from "@/components/ui/Button";
 import { motion } from "framer-motion";
 
-const mockGalleryItems = [
-  { id: "1", title: "Championship Win 2025", year: 2025, event: "championship", image: "🏆" },
-  { id: "2", title: "Navratri Celebration", year: 2025, event: "navratri", image: "🎉" },
-  { id: "3", title: "Training Session", year: 2026, event: null, image: "⚽" },
-  { id: "4", title: "Fan Meet & Greet", year: 2026, event: null, image: "🤝" },
-  { id: "5", title: "Stadium Opening", year: 2024, event: "opening", image: "🏟️" },
-  { id: "6", title: "Youth Academy", year: 2026, event: null, image: "👦" },
+type MediaType = "all" | "images" | "videos";
+type FilterType = "all" | "monthly" | "yearly" | "events";
+
+interface GalleryItem {
+  id: string;
+  type: "image" | "youtube" | "live";
+  url: string;
+  thumbnail?: string;
+  title: string;
+  date: string;
+  month: string;
+  year: string;
+  event?: string;
+  description?: string;
+}
+
+const mockGalleryItems: GalleryItem[] = [
+  {
+    id: "1",
+    type: "youtube",
+    url: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+    thumbnail: "https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg",
+    title: "NVFC vs Rivals FC - Match Highlights",
+    date: "2026-02-03",
+    month: "February",
+    year: "2026",
+    event: "League Match",
+    description: "Amazing comeback victory with 3 goals in the second half"
+  },
+  {
+    id: "2",
+    type: "image",
+    url: "/logo.png",
+    title: "Team Celebration",
+    date: "2026-02-03",
+    month: "February",
+    year: "2026",
+    event: "League Match"
+  },
+  {
+    id: "3",
+    type: "youtube",
+    url: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+    thumbnail: "https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg",
+    title: "Training Session - January 2026",
+    date: "2026-01-15",
+    month: "January",
+    year: "2026",
+    event: "Training"
+  },
+  {
+    id: "4",
+    type: "live",
+    url: "https://www.youtube.com/embed/live_stream_id",
+    thumbnail: "https://img.youtube.com/vi/live_stream_id/maxresdefault.jpg",
+    title: "LIVE: NVFC vs Champions FC",
+    date: "2026-02-10",
+    month: "February",
+    year: "2026",
+    event: "Live Match",
+    description: "Watch the match live!"
+  },
+  {
+    id: "5",
+    type: "image",
+    url: "/logo.png",
+    title: "New Year Celebration 2026",
+    date: "2026-01-01",
+    month: "January",
+    year: "2026",
+    event: "Club Event"
+  },
+  {
+    id: "6",
+    type: "youtube",
+    url: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+    thumbnail: "https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg",
+    title: "Season Review 2025",
+    date: "2025-12-31",
+    month: "December",
+    year: "2025",
+    event: "Season Review"
+  },
 ];
 
 export default function GalleryPage() {
-  const [selectedYear, setSelectedYear] = useState<number | "all">("all");
-  const [selectedEvent, setSelectedEvent] = useState<string | "all">("all");
-  const [layout, setLayout] = useState<"grid" | "masonry">("grid");
+  const [mediaFilter, setMediaFilter] = useState<MediaType>("all");
+  const [timeFilter, setTimeFilter] = useState<FilterType>("all");
+  const [selectedMonth, setSelectedMonth] = useState<string>("all");
+  const [selectedYear, setSelectedYear] = useState<string>("all");
+  const [selectedEvent, setSelectedEvent] = useState<string>("all");
+  const [selectedItem, setSelectedItem] = useState<GalleryItem | null>(null);
 
-  const years = ["all", ...Array.from(new Set(mockGalleryItems.map((item) => item.year)))];
-  const events = ["all", "championship", "navratri", "opening"];
+  // Get unique months, years, and events
+  const months = ["all", ...Array.from(new Set(mockGalleryItems.map(item => item.month)))];
+  const years = ["all", ...Array.from(new Set(mockGalleryItems.map(item => item.year)))];
+  const events = ["all", ...Array.from(new Set(mockGalleryItems.map(item => item.event).filter(Boolean)))];
 
   const filteredItems = mockGalleryItems.filter((item) => {
-    const yearMatch = selectedYear === "all" || item.year === selectedYear;
-    const eventMatch = selectedEvent === "all" || item.event === selectedEvent;
-    return yearMatch && eventMatch;
+    // Media type filter
+    if (mediaFilter === "images" && item.type !== "image") return false;
+    if (mediaFilter === "videos" && item.type === "image") return false;
+
+    // Time-based filters
+    if (timeFilter === "monthly" && selectedMonth !== "all" && item.month !== selectedMonth) return false;
+    if (timeFilter === "yearly" && selectedYear !== "all" && item.year !== selectedYear) return false;
+    if (timeFilter === "events" && selectedEvent !== "all" && item.event !== selectedEvent) return false;
+
+    return true;
   });
 
+  const MediaCard = ({ item }: { item: GalleryItem }) => (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9 }}
+      whileInView={{ opacity: 1, scale: 1 }}
+      viewport={{ once: true }}
+      whileHover={{ scale: 1.05 }}
+      onClick={() => setSelectedItem(item)}
+      className="cursor-pointer"
+    >
+      <Card className="overflow-hidden h-full">
+        <div className="relative aspect-video bg-gray-200">
+          {item.type === "image" ? (
+            <img src={item.url} alt={item.title} className="w-full h-full object-cover" />
+          ) : (
+            <div className="relative w-full h-full">
+              <img 
+                src={item.thumbnail || "/logo.png"} 
+                alt={item.title} 
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                {item.type === "live" ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="bg-red-600 text-white px-4 py-2 rounded-full font-bold text-sm animate-pulse">
+                      🔴 LIVE
+                    </div>
+                    <div className="bg-white/90 rounded-full p-4">
+                      <svg className="w-12 h-12 text-nvfc-primary" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z"/>
+                      </svg>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-white/90 rounded-full p-4">
+                    <svg className="w-12 h-12 text-red-600" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M8 5v14l11-7z"/>
+                    </svg>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="p-4">
+          <h3 className="font-bold text-lg mb-2 line-clamp-2">{item.title}</h3>
+          <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
+            <span>📅 {item.date}</span>
+            {item.event && <span className="px-2 py-1 bg-nvfc-secondary/20 text-nvfc-primary rounded text-xs font-semibold">{item.event}</span>}
+          </div>
+          {item.description && (
+            <p className="text-sm text-gray-600 line-clamp-2">{item.description}</p>
+          )}
+        </div>
+      </Card>
+    </motion.div>
+  );
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <main className="min-h-screen bg-gray-50">
+      {/* Hero Section */}
       <div className="bg-hero-pattern text-white py-16">
-        <div className="container-custom text-center">
-          <h1 className="text-5xl font-bold mb-4">Gallery</h1>
-          <p className="text-xl">Relive the best moments of NVFC</p>
+        <div className="container-custom">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <h1 className="text-4xl md:text-5xl font-bold mb-4">Media Gallery</h1>
+            <p className="text-xl text-gray-200">
+              Photos, videos, and live matches from NVFC
+            </p>
+          </motion.div>
         </div>
       </div>
 
       <div className="container-custom py-12">
-        {/* Filters */}
-        <div className="mb-8 space-y-4">
-          <div className="flex flex-wrap gap-4 items-center">
-            <div>
-              <label className="text-sm font-medium text-gray-700 mb-2 block">Year</label>
-              <div className="flex gap-2">
-                {years.map((year) => (
-                  <button
-                    key={year}
-                    onClick={() => setSelectedYear(year)}
-                    className={`px-4 py-2 rounded-lg font-medium ${
-                      selectedYear === year
-                        ? "bg-nvfc-primary text-white"
-                        : "bg-white text-gray-700 hover:bg-gray-100"
-                    }`}
-                  >
-                    {year === "all" ? "All Years" : year}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className="text-sm font-medium text-gray-700 mb-2 block">Event</label>
-              <div className="flex gap-2">
-                {events.map((event) => (
-                  <button
-                    key={event}
-                    onClick={() => setSelectedEvent(event)}
-                    className={`px-4 py-2 rounded-lg font-medium capitalize ${
-                      selectedEvent === event
-                        ? "bg-nvfc-primary text-white"
-                        : "bg-white text-gray-700 hover:bg-gray-100"
-                    }`}
-                  >
-                    {event === "all" ? "All Events" : event}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className="text-sm font-medium text-gray-700 mb-2 block">Layout</label>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setLayout("grid")}
-                  className={`px-4 py-2 rounded-lg font-medium ${
-                    layout === "grid"
-                      ? "bg-nvfc-primary text-white"
-                      : "bg-white text-gray-700 hover:bg-gray-100"
-                  }`}
-                >
-                  Grid
-                </button>
-                <button
-                  onClick={() => setLayout("masonry")}
-                  className={`px-4 py-2 rounded-lg font-medium ${
-                    layout === "masonry"
-                      ? "bg-nvfc-primary text-white"
-                      : "bg-white text-gray-700 hover:bg-gray-100"
-                  }`}
-                >
-                  Masonry
-                </button>
-              </div>
-            </div>
+        {/* Media Type Filter */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8"
+        >
+          <div className="flex gap-4 border-b border-gray-200 mb-6">
+            {[
+              { label: "All Media", value: "all" },
+              { label: "📸 Images", value: "images" },
+              { label: "🎥 Videos", value: "videos" },
+            ].map((tab) => (
+              <button
+                key={tab.value}
+                onClick={() => setMediaFilter(tab.value as MediaType)}
+                className={`px-6 py-3 font-semibold transition-all ${
+                  mediaFilter === tab.value
+                    ? "border-b-2 border-nvfc-primary text-nvfc-primary"
+                    : "text-gray-600 hover:text-nvfc-primary"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
-        </div>
+
+          {/* Time-based Filters */}
+          <div className="flex flex-wrap gap-4 items-center">
+            <div className="flex gap-2">
+              {[
+                { label: "All Time", value: "all" },
+                { label: "By Month", value: "monthly" },
+                { label: "By Year", value: "yearly" },
+                { label: "By Event", value: "events" },
+              ].map((filter) => (
+                <Button
+                  key={filter.value}
+                  variant={timeFilter === filter.value ? "primary" : "outline"}
+                  size="sm"
+                  onClick={() => setTimeFilter(filter.value as FilterType)}
+                >
+                  {filter.label}
+                </Button>
+              ))}
+            </div>
+
+            {/* Conditional Dropdowns */}
+            {timeFilter === "monthly" && (
+              <select
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-nvfc-primary"
+              >
+                {months.map((month) => (
+                  <option key={month} value={month}>
+                    {month === "all" ? "All Months" : month}
+                  </option>
+                ))}
+              </select>
+            )}
+
+            {timeFilter === "yearly" && (
+              <select
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-nvfc-primary"
+              >
+                {years.map((year) => (
+                  <option key={year} value={year}>
+                    {year === "all" ? "All Years" : year}
+                  </option>
+                ))}
+              </select>
+            )}
+
+            {timeFilter === "events" && (
+              <select
+                value={selectedEvent}
+                onChange={(e) => setSelectedEvent(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-nvfc-primary"
+              >
+                {events.map((event) => (
+                  <option key={event} value={event}>
+                    {event === "all" ? "All Events" : event}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+        </motion.div>
 
         {/* Gallery Grid */}
-        <div
-          className={
-            layout === "grid"
-              ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
-              : "columns-1 sm:columns-2 lg:columns-3 gap-6 space-y-6"
-          }
-        >
-          {filteredItems.map((item, index) => (
-            <motion.div
-              key={item.id}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: index * 0.1 }}
-              className={layout === "masonry" ? "break-inside-avoid" : ""}
-            >
-              <Card hover className="overflow-hidden cursor-pointer">
-                <div
-                  className={`bg-gradient-to-br from-nvfc-primary to-nvfc-accent flex items-center justify-center text-white ${
-                    layout === "grid" ? "aspect-square" : "h-64"
-                  }`}
-                >
-                  <div className="text-8xl">{item.image}</div>
-                </div>
-                <div className="p-4">
-                  <h3 className="font-bold text-lg mb-2">{item.title}</h3>
-                  <div className="flex gap-2">
-                    <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
-                      {item.year}
-                    </span>
-                    {item.event && (
-                      <span className="text-xs bg-nvfc-secondary text-white px-2 py-1 rounded capitalize">
-                        {item.event}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </Card>
-            </motion.div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredItems.map((item) => (
+            <MediaCard key={item.id} item={item} />
           ))}
         </div>
 
         {filteredItems.length === 0 && (
-          <div className="text-center py-12 text-gray-500">
-            <div className="text-6xl mb-4">🖼️</div>
-            <p>No images found for the selected filters</p>
+          <div className="text-center py-12">
+            <p className="text-gray-500 text-lg">No media found for the selected filters</p>
           </div>
         )}
       </div>
-    </div>
+
+      {/* Modal for viewing media */}
+      {selectedItem && (
+        <div
+          className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+          onClick={() => setSelectedItem(null)}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h2 className="text-2xl font-bold mb-2">{selectedItem.title}</h2>
+                  <p className="text-gray-600">{selectedItem.date} • {selectedItem.event}</p>
+                </div>
+                <button
+                  onClick={() => setSelectedItem(null)}
+                  className="text-gray-500 hover:text-gray-700 text-3xl"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="aspect-video bg-gray-200 rounded-lg overflow-hidden mb-4">
+                {selectedItem.type === "image" ? (
+                  <img src={selectedItem.url} alt={selectedItem.title} className="w-full h-full object-contain" />
+                ) : (
+                  <iframe
+                    src={selectedItem.url}
+                    className="w-full h-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                )}
+              </div>
+
+              {selectedItem.description && (
+                <p className="text-gray-700">{selectedItem.description}</p>
+              )}
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </main>
   );
 }

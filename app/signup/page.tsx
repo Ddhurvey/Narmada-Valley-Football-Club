@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { signUp, signInWithGoogle, signInAnonymouslyUser } from "@/lib/auth";
+import { signUp, signInWithGoogle } from "@/lib/auth";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Card from "@/components/ui/Card";
@@ -60,23 +60,6 @@ export default function SignupPage() {
       }
     } catch (err: any) {
       setError(err.message || "Failed to sign in with Google");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleAnonymousSignIn = async () => {
-    setError("");
-    setIsLoading(true);
-    try {
-      const result = await signInAnonymouslyUser();
-      if (result.success) {
-        router.push("/dashboard");
-      } else {
-        setError(result.error || "Failed to sign in anonymously");
-      }
-    } catch (err: any) {
-      setError(err.message || "Failed to sign in anonymously");
     } finally {
       setIsLoading(false);
     }
@@ -198,17 +181,6 @@ export default function SignupPage() {
                 />
               </svg>
               Sign up with Google
-            </Button>
-
-            <Button
-              type="button"
-              variant="ghost"
-              size="lg"
-              className="w-full"
-              onClick={handleAnonymousSignIn}
-              disabled={isLoading}
-            >
-              🎭 Continue as Guest
             </Button>
           </div>
 

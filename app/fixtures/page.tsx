@@ -6,6 +6,15 @@ import Button from "@/components/ui/Button";
 import { motion } from "framer-motion";
 import { formatDate } from "@/lib/utils";
 
+// Team logos mapping
+const teamLogos: Record<string, string> = {
+  "NVFC": "/logo.png",
+  "Rivals FC": "⚔️",
+  "City FC": "🌟",
+  "United FC": "🔴",
+  "Champions FC": "🏆",
+};
+
 // Mock fixtures data
 const mockFixtures = [
   {
@@ -82,6 +91,15 @@ export default function FixturesPage() {
     }
   };
 
+  const TeamLogo = ({ team }: { team: string }) => {
+    const logo = teamLogos[team] || "⚽";
+    
+    if (logo.startsWith('/')) {
+      return <img src={logo} alt={`${team} logo`} className="w-10 h-10 object-contain" />;
+    }
+    return <span className="text-3xl">{logo}</span>;
+  };
+
   return (
     <main className="min-h-screen bg-gray-50">
       {/* Hero Section */}
@@ -153,7 +171,9 @@ export default function FixturesPage() {
                   {/* Teams & Score */}
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-2">
+                      {/* Home Team */}
                       <div className="flex items-center gap-3 flex-1">
+                        <TeamLogo team={fixture.homeTeam} />
                         <span
                           className={`text-lg font-bold ${
                             fixture.homeTeam === "NVFC" ? "text-nvfc-primary" : "text-gray-800"
@@ -162,6 +182,8 @@ export default function FixturesPage() {
                           {fixture.homeTeam}
                         </span>
                       </div>
+
+                      {/* Score or VS */}
                       {fixture.status === "completed" ? (
                         <span className="text-2xl font-bold text-nvfc-dark mx-4">
                           {fixture.homeScore} - {fixture.awayScore}
@@ -169,6 +191,8 @@ export default function FixturesPage() {
                       ) : (
                         <span className="text-lg font-semibold text-gray-400 mx-4">vs</span>
                       )}
+
+                      {/* Away Team */}
                       <div className="flex items-center gap-3 flex-1 justify-end">
                         <span
                           className={`text-lg font-bold ${
@@ -177,6 +201,7 @@ export default function FixturesPage() {
                         >
                           {fixture.awayTeam}
                         </span>
+                        <TeamLogo team={fixture.awayTeam} />
                       </div>
                     </div>
                     <div className="text-sm text-gray-600 text-center">
