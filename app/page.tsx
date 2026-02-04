@@ -55,10 +55,34 @@ export default function Home() {
   ];
 
   const standings = [
-    { position: 1, team: "Leaders FC", played: 20, points: 48 },
-    { position: 2, team: "NVFC", played: 20, points: 45 },
-    { position: 3, team: "Champions United", played: 20, points: 42 },
-    { position: 4, team: "City FC", played: 20, points: 38 },
+    { 
+      position: 1, 
+      team: "Leaders FC", 
+      played: 20, 
+      points: 48,
+      logo: "⚡"
+    },
+    { 
+      position: 2, 
+      team: "NVFC", 
+      played: 20, 
+      points: 45,
+      logo: "/logo.png"
+    },
+    { 
+      position: 3, 
+      team: "Champions United", 
+      played: 20, 
+      points: 42,
+      logo: "🏆"
+    },
+    { 
+      position: 4, 
+      team: "City FC", 
+      played: 20, 
+      points: 38,
+      logo: "🌟"
+    },
   ];
 
   return (
@@ -188,7 +212,20 @@ export default function Home() {
                       }`}
                     >
                       <td className="px-6 py-4">{team.position}</td>
-                      <td className="px-6 py-4">{team.team}</td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          {team.logo.startsWith('/') ? (
+                            <img 
+                              src={team.logo} 
+                              alt={`${team.team} logo`} 
+                              className="w-8 h-8 object-contain"
+                            />
+                          ) : (
+                            <span className="text-2xl">{team.logo}</span>
+                          )}
+                          <span>{team.team}</span>
+                        </div>
+                      </td>
                       <td className="px-6 py-4 text-center">{team.played}</td>
                       <td className="px-6 py-4 text-center font-bold">{team.points}</td>
                     </motion.tr>
