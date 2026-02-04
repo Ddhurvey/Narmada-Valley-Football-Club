@@ -85,8 +85,12 @@ const Header: React.FC = () => {
           <div className="flex items-center justify-between">
             {/* Logo */}
             <Link href="/" className="flex items-center gap-3 group">
-              <div className="w-12 h-12 bg-nvfc-primary rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-                <span className="text-2xl font-bold text-nvfc-secondary">N</span>
+              <div className="w-14 h-14 relative group-hover:scale-110 transition-transform">
+                <img 
+                  src="/logo.png" 
+                  alt="NVFC Logo" 
+                  className="w-full h-full object-contain"
+                />
               </div>
               <div className="hidden md:block">
                 <h1 className="text-xl font-bold text-nvfc-dark">NVFC</h1>

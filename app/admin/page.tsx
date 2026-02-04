@@ -31,6 +31,7 @@ export default function AdminDashboard() {
     { title: "Players", icon: "⚽", href: "/admin/players", color: "green" },
     { title: "Fixtures", icon: "📅", href: "/admin/fixtures", color: "orange" },
     { title: "Products", icon: "🛍️", href: "/admin/products", color: "pink" },
+    { title: "Media Manager", icon: "📸", href: "/admin/media", color: "teal" },
     { title: "Layouts", icon: "🎨", href: "/admin/layouts", color: "indigo" },
     { title: "Events", icon: "🎉", href: "/admin/events", color: "yellow" },
     { title: "Audit Logs", icon: "📋", href: "/admin/audit", color: "gray", adminOnly: true },
