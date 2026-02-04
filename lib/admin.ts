@@ -25,6 +25,7 @@ export interface UserProfile {
   uid: string;
   email: string;
   displayName: string;
+  photoURL?: string;
   role: Role;
   status: UserStatus;
   createdAt: Timestamp;

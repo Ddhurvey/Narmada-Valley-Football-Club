@@ -14,6 +14,7 @@ interface AuthState {
   isSuperAdmin: boolean;
   isAdmin: boolean;
   permissions: Permission[];
+  error: string | null;
 }
 
 export function useAuth() {
@@ -24,25 +25,41 @@ export function useAuth() {
     isSuperAdmin: false,
     isAdmin: false,
     permissions: [],
+    error: null,
   });
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        // Fetch user profile and role
-        const profile = await getUserProfile(user.uid);
-        const isSuperAdmin = await checkIsSuperAdmin(user.uid);
-        const isAdmin = profile?.role === ROLES.ADMIN || profile?.role === ROLES.SUPER_ADMIN;
-        const permissions = profile?.role ? getRolePermissions(profile.role) : [];
+        try {
+          // Fetch user profile and role
+          const profile = await getUserProfile(user.uid);
+          const isSuperAdmin = await checkIsSuperAdmin(user.uid);
+          const isAdmin = profile?.role === ROLES.ADMIN || profile?.role === ROLES.SUPER_ADMIN;
+          const permissions = profile?.role ? getRolePermissions(profile.role) : [];
 
-        setAuthState({
-          user,
-          profile,
-          loading: false,
-          isSuperAdmin,
-          isAdmin,
-          permissions,
-        });
+          setAuthState({
+            user,
+            profile,
+            loading: false,
+            isSuperAdmin,
+            isAdmin,
+            permissions,
+            error: null,
+          });
+        } catch (error: any) {
+          console.error("Error fetching user profile:", error);
+          // Set user but with error state (offline mode)
+          setAuthState({
+            user,
+            profile: null,
+            loading: false,
+            isSuperAdmin: false,
+            isAdmin: false,
+            permissions: [],
+            error: error.message || "Failed to load user profile",
+          });
+        }
       } else {
         setAuthState({
           user: null,
@@ -51,6 +68,7 @@ export function useAuth() {
           isSuperAdmin: false,
           isAdmin: false,
           permissions: [],
+          error: null,
         });
       }
     });

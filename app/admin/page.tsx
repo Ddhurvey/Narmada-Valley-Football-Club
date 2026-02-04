@@ -12,6 +12,12 @@ export default function AdminDashboard() {
   const { user, isAdmin, loading } = useAuth();
   const router = useRouter();
 
+  React.useEffect(() => {
+    if (!loading && !isAdmin) {
+      router.push("/");
+    }
+  }, [loading, isAdmin, router]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -21,7 +27,6 @@ export default function AdminDashboard() {
   }
 
   if (!isAdmin) {
-    router.push("/");
     return null;
   }
 

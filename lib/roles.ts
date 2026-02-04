@@ -15,6 +15,13 @@ export const USER_STATUS = {
 
 export type UserStatus = typeof USER_STATUS[keyof typeof USER_STATUS];
 
+// HARDCODED SUPER ADMINS (Faster & More Reliable)
+export const SUPER_ADMIN_EMAILS = [
+  "devendradhur85@gmail.com", 
+  "devendhurvey78@gmail.com",
+  "admin@nvfc.com"
+];
+
 // Permission definitions
 export const PERMISSIONS = {
   // Super Admin only

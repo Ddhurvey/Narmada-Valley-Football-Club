@@ -78,7 +78,7 @@ const Footer: React.FC = () => {
             </Link>
             <h3 className="text-xl font-bold mb-2">Narmada Valley FC</h3>
             <p className="text-gray-400 text-sm mb-4">
-              निरंतर तीव्र काल अभ्यास
+              निरंतर दीर्घ काल अभ्यास
             </p>
             <p className="text-gray-400 text-sm">
               Experience the passion, pride, and glory of NVFC. Join us on our journey to greatness.

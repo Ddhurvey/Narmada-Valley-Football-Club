@@ -2,8 +2,9 @@
 
 import React from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { logout } from "@/lib/auth";
+import { signOut } from "@/lib/auth";
 import { useRouter } from "next/navigation";
+import { ROLES } from "@/lib/roles";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Link from "next/link";
@@ -21,7 +22,7 @@ export default function DashboardPage() {
   }, [user, loading, router]);
 
   const handleLogout = async () => {
-    await logout();
+    await signOut();
     router.push("/");
   };
 
@@ -78,7 +79,7 @@ export default function DashboardPage() {
                   </h2>
                   <p className="text-gray-600">{user.email}</p>
                   <span className="inline-block mt-1 px-3 py-1 bg-nvfc-secondary text-nvfc-dark text-xs font-semibold rounded-full">
-                    {profile?.role === "admin" ? "Admin" : "Member"}
+                    {profile?.role === ROLES.ADMIN || profile?.role === ROLES.SUPER_ADMIN ? "Admin" : "Member"}
                   </span>
                 </div>
               </div>
@@ -125,7 +126,7 @@ export default function DashboardPage() {
         </motion.div>
 
         {/* Admin Panel Link */}
-        {profile?.role === "admin" && (
+        {(profile?.role === ROLES.ADMIN || profile?.role === ROLES.SUPER_ADMIN) && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}

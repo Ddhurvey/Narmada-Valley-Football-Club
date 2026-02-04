@@ -21,15 +21,22 @@ export default function LoginPage() {
     setError("");
     setIsLoading(true);
 
+    // Basic validation
+    if (!email || !password) {
+      setError("Please enter both email and password");
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const result = await signIn(email, password);
       if (result.success) {
         router.push("/dashboard");
       } else {
-        setError(result.error || "Failed to sign in");
+        setError(result.error || "Failed to sign in. Please check your credentials.");
       }
     } catch (err: any) {
-      setError(err.message || "Failed to sign in. Please check your credentials.");
+      setError(err.message || "An unexpected error occurred. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -43,10 +50,10 @@ export default function LoginPage() {
       if (result.success) {
         router.push("/dashboard");
       } else {
-        setError(result.error || "Failed to sign in with Google");
+        setError(result.error || "Failed to sign in with Google. Please try again.");
       }
     } catch (err: any) {
-      setError(err.message || "Failed to sign in with Google");
+      setError(err.message || "An unexpected error occurred with Google sign-in.");
     } finally {
       setIsLoading(false);
     }

@@ -22,6 +22,17 @@ export default function SignupPage() {
     e.preventDefault();
     setError("");
 
+    // Validation
+    if (!displayName.trim()) {
+      setError("Please enter your full name");
+      return;
+    }
+
+    if (!email.trim()) {
+      setError("Please enter your email address");
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError("Passwords do not match");
       return;
@@ -39,10 +50,10 @@ export default function SignupPage() {
       if (result.success) {
         router.push("/dashboard");
       } else {
-        setError(result.error || "Failed to create account");
+        setError(result.error || "Failed to create account. Please try again.");
       }
     } catch (err: any) {
-      setError(err.message || "Failed to create account");
+      setError(err.message || "An unexpected error occurred. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -56,10 +67,10 @@ export default function SignupPage() {
       if (result.success) {
         router.push("/dashboard");
       } else {
-        setError(result.error || "Failed to sign in with Google");
+        setError(result.error || "Failed to sign in with Google. Please try again.");
       }
     } catch (err: any) {
-      setError(err.message || "Failed to sign in with Google");
+      setError(err.message || "An unexpected error occurred with Google sign-in.");
     } finally {
       setIsLoading(false);
     }

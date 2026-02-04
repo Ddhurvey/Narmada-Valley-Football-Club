@@ -22,7 +22,14 @@ export const metadata: Metadata = {
   },
   viewport: "width=device-width, initial-scale=1",
   themeColor: "#1a1f71",
+  icons: {
+    icon: "/icon.png",
+    shortcut: "/icon.png",
+    apple: "/icon.png",
+  },
 };
+
+import ConsoleLogger from "@/components/ConsoleLogger";
 
 export default function RootLayout({
   children,
@@ -32,6 +39,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
+        <ConsoleLogger />
         <Header />
         {children}
         <Footer />

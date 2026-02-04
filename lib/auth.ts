@@ -9,9 +9,9 @@ import {
   GoogleAuthProvider,
   signInAnonymously,
 } from "firebase/auth";
-import { doc, setDoc, getDoc, Timestamp, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, getDoc, updateDoc, Timestamp, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "./firebase";
-import { ROLES, Role, USER_STATUS } from "./roles";
+import { ROLES, Role, USER_STATUS, SUPER_ADMIN_EMAILS } from "./roles";
 import { getSuperAdminUID, setSuperAdminUID, isSuperAdmin, logAudit } from "./admin";
 import type { UserProfile } from "./admin";
 
@@ -65,7 +65,20 @@ export async function signUp(
 
     return { success: true, user };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    // Provide more user-friendly error messages
+    let errorMessage = "Failed to create account";
+    
+    if (error.code === "auth/email-already-in-use") {
+      errorMessage = "This email is already registered";
+    } else if (error.code === "auth/invalid-email") {
+      errorMessage = "Invalid email address";
+    } else if (error.code === "auth/weak-password") {
+      errorMessage = "Password is too weak. Use at least 6 characters";
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
+    return { success: false, error: errorMessage };
   }
 }
 
@@ -78,26 +91,74 @@ export async function signIn(email: string, password: string) {
     const user = userCredential.user;
 
     // Check if user is blocked
-    const profile = await getUserProfile(user.uid);
+    let profile: UserProfile | null = null;
+    try {
+      profile = await getUserProfile(user.uid);
+    } catch (error) {
+      console.warn("Could not fetch user profile (likely offline)", error);
+      // Proceed without profile check if offline
+    }
+
     if (profile?.status === USER_STATUS.BLOCKED) {
       await firebaseSignOut(auth);
       return { success: false, error: "Your account has been blocked. Please contact support." };
     }
 
     // Log the signin
-    await logAudit({
-      userId: user.uid,
-      userName: profile?.displayName || "Unknown",
-      action: "USER_SIGNIN",
-      resource: "auth",
-      resourceId: user.uid,
-      timestamp: Timestamp.now(),
-    });
+    try {
+      await logAudit({
+        userId: user.uid,
+        userName: profile?.displayName || "Unknown",
+        action: "USER_SIGNIN",
+        resource: "auth",
+        resourceId: user.uid,
+        timestamp: Timestamp.now(),
+      });
+    } catch (error) {
+      console.warn("Could not log audit (likely offline)", error);
+    }
 
     return { success: true, user };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    // Provide more user-friendly error messages
+    let errorMessage = "Failed to sign in";
+    
+    if (error.code === "auth/user-not-found" || error.code === "auth/wrong-password") {
+      errorMessage = "Invalid email or password";
+    } else if (error.code === "auth/invalid-email") {
+      errorMessage = "Invalid email address";
+    } else if (error.code === "auth/user-disabled") {
+      errorMessage = "This account has been disabled";
+    } else if (error.code === "auth/too-many-requests") {
+      errorMessage = "Too many failed attempts. Please try again later";
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
+    return { success: false, error: errorMessage };
   }
+}
+
+/**
+ * Sign in with Google
+ */
+// Helper to timeout promises (prevent hanging on blocked connections)
+async function withTimeout<T>(promise: Promise<T>, ms: number, fallbackValue: T): Promise<T> {
+  let timeoutId: NodeJS.Timeout;
+  const timeoutPromise = new Promise<T>((resolve) => {
+    timeoutId = setTimeout(() => {
+      console.warn(`Operation timed out after ${ms}ms. Using fallback.`);
+      resolve(fallbackValue);
+    }, ms);
+  });
+
+  return Promise.race([
+    promise.then((res) => {
+      clearTimeout(timeoutId);
+      return res;
+    }),
+    timeoutPromise
+  ]);
 }
 
 /**
@@ -105,66 +166,75 @@ export async function signIn(email: string, password: string) {
  */
 export async function signInWithGoogle() {
   try {
+    // 1. Auth Step (Google Popup) - This usually works even if DB is blocked
     const provider = new GoogleAuthProvider();
     const userCredential = await signInWithPopup(auth, provider);
     const user = userCredential.user;
 
-    // Check if user document exists
-    const userDoc = await getDoc(doc(db, "users", user.uid));
-    
-    if (!userDoc.exists()) {
-      // Check if this is the first user
-      const superAdminUID = await getSuperAdminUID();
-      const isFirstUser = !superAdminUID;
+    // 2. Database Step (Risk of hanging if blocked) -> Wrap in Timeout
+    try {
+        // Try to fetching profile with 2.5s timeout only
+        const userDocSnapshot = await withTimeout(
+            getDoc(doc(db, "users", user.uid)),
+            2500, // 2.5 seconds max wait
+            null  // Fallback if timeout
+        );
 
-      let role: Role = ROLES.USER;
+        if (!userDocSnapshot) {
+             console.warn("Firestore timed out/blocked. Proceeding with basic auth.");
+             // If we can't read DB, we assume standard user or check whitelist locally
+             let role: Role = ROLES.USER;
+             if (user.email && SUPER_ADMIN_EMAILS.includes(user.email)) {
+                 role = ROLES.SUPER_ADMIN;
+             }
+             return { success: true, user: { ...user, role } }; // Return extended user object if possible, or just user
+        }
+        
+        const userDoc = userDocSnapshot; // Now strictly a DocumentSnapshot
 
-      if (isFirstUser) {
-        role = ROLES.SUPER_ADMIN;
-        await setSuperAdminUID(user.uid);
-      }
+        // 3. Normal Logic if DB connects
+        if (userDoc.exists()) {
+             // User exists
+             const profile = userDoc.data() as UserProfile;
+             if (profile.status === USER_STATUS.BLOCKED) {
+                await firebaseSignOut(auth);
+                return { success: false, error: "Account blocked." };
+             }
+             // Auto-upgrade check
+             if (user.email && SUPER_ADMIN_EMAILS.includes(user.email) && profile.role !== ROLES.SUPER_ADMIN) {
+                 // Fire and forget upgrade
+                 setDoc(doc(db, "users", user.uid), { role: ROLES.SUPER_ADMIN }, { merge: true }).catch(console.warn);
+             }
+             return { success: true, user };
+        } else {
+             // New User (Create Profile)
+             let role: Role = ROLES.USER;
+             if (user.email && SUPER_ADMIN_EMAILS.includes(user.email)) {
+                role = ROLES.SUPER_ADMIN;
+             }
+             
+             const newUserProfile: UserProfile = {
+                uid: user.uid,
+                email: user.email || "",
+                displayName: user.displayName || "Google User",
+                photoURL: user.photoURL || undefined,
+                role,
+                status: USER_STATUS.ACTIVE,
+                createdAt: Timestamp.now(),
+                updatedAt: Timestamp.now(),
+             };
+             
+             // Fire and forget creation
+             setDoc(doc(db, "users", user.uid), newUserProfile).catch(console.warn);
+             return { success: true, user };
+        }
 
-      // Create user document for new Google users
-      const userProfile: UserProfile = {
-        uid: user.uid,
-        email: user.email || "",
-        displayName: user.displayName || "Google User",
-        photoURL: user.photoURL,
-        role,
-        status: USER_STATUS.ACTIVE,
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
-      };
-
-      await setDoc(doc(db, "users", user.uid), userProfile);
-
-      await logAudit({
-        userId: user.uid,
-        userName: user.displayName || "Google User",
-        action: isFirstUser ? "SUPER_ADMIN_CREATED" : "USER_SIGNUP",
-        resource: "user",
-        resourceId: user.uid,
-        timestamp: Timestamp.now(),
-      });
-    } else {
-      // Check if user is blocked
-      const profile = userDoc.data() as UserProfile;
-      if (profile.status === USER_STATUS.BLOCKED) {
-        await firebaseSignOut(auth);
-        return { success: false, error: "Your account has been blocked. Please contact support." };
-      }
-
-      await logAudit({
-        userId: user.uid,
-        userName: profile.displayName,
-        action: "USER_SIGNIN",
-        resource: "auth",
-        resourceId: user.uid,
-        timestamp: Timestamp.now(),
-      });
+    } catch (dbError) {
+        console.warn("Database Error (Ignored to allow login):", dbError);
+        // Fallback success
+        return { success: true, user };
     }
 
-    return { success: true, user };
   } catch (error: any) {
     return { success: false, error: error.message };
   }
@@ -189,16 +259,11 @@ export async function signInAnonymouslyUser() {
       updatedAt: Timestamp.now(),
     };
 
-    await setDoc(doc(db, "users", user.uid), userProfile);
-
-    await logAudit({
-      userId: user.uid,
-      userName: "Anonymous User",
-      action: "ANONYMOUS_SIGNIN",
-      resource: "auth",
-      resourceId: user.uid,
-      timestamp: Timestamp.now(),
-    });
+    try {
+      await setDoc(doc(db, "users", user.uid), userProfile);
+    } catch (e) {
+       console.warn("Could not create anonymous profile", e);
+    }
 
     return { success: true, user };
   } catch (error: any) {
@@ -222,11 +287,16 @@ export async function signOut() {
  * Get user profile from Firestore
  */
 export async function getUserProfile(uid: string): Promise<UserProfile | null> {
-  const userDoc = await getDoc(doc(db, "users", uid));
-  if (userDoc.exists()) {
-    return userDoc.data() as UserProfile;
+  try {
+    const userDoc = await getDoc(doc(db, "users", uid));
+    if (userDoc.exists()) {
+      return userDoc.data() as UserProfile;
+    }
+    return null;
+  } catch (error: any) {
+    console.warn("Error fetching user profile:", error);
+    return null;
   }
-  return null;
 }
 
 /**
@@ -257,3 +327,74 @@ export const resetPassword = async (email: string): Promise<void> => {
 export const onAuthChange = (callback: (user: User | null) => void) => {
   return onAuthStateChanged(auth, callback);
 };
+
+/**
+ * Update user profile information
+ */
+export async function updateUserProfile(
+  userId: string,
+  updates: {
+    displayName?: string;
+    photoURL?: string;
+    phoneNumber?: string;
+    address?: string;
+  }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const userRef = doc(db, "users", userId);
+    
+    // Prepare update data
+    const updateData: any = {
+      updatedAt: Timestamp.now(),
+    };
+
+    if (updates.displayName !== undefined) {
+      updateData.displayName = updates.displayName.trim();
+    }
+    if (updates.photoURL !== undefined) {
+      updateData.photoURL = updates.photoURL;
+    }
+    if (updates.phoneNumber !== undefined) {
+      updateData.phoneNumber = updates.phoneNumber.trim();
+    }
+    if (updates.address !== undefined) {
+      updateData.address = updates.address.trim();
+    }
+
+    // Update Firestore
+    await updateDoc(userRef, updateData);
+
+    // Log the update
+    try {
+      await logAudit({
+        userId,
+        userName: updates.displayName || "Unknown",
+        action: "PROFILE_UPDATE",
+        resource: "user",
+        resourceId: userId,
+        timestamp: Timestamp.now(),
+        details: `Updated profile: `,
+      });
+    } catch (error) {
+      console.warn("Could not log audit (likely offline)", error);
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error updating profile:", error);
+    
+    // Handle offline/blocked Firestore
+    if (error.code === "unavailable" || error.message?.includes("offline")) {
+      return { 
+        success: false, 
+        error: "Unable to update profile while offline. Please check your connection." 
+      };
+    }
+    
+    return { 
+      success: false, 
+      error: "Failed to update profile. Please try again." 
+    };
+  }
+}
+

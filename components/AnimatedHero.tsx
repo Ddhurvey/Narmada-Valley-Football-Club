@@ -50,28 +50,6 @@ const AnimatedHero: React.FC<AnimatedHeroProps> = ({
       </div>
 
       {/* Animated particles */}
-      <div className="absolute inset-0" style={{ zIndex: 1 }}>
-        {[...Array(20)].map((_, i) => (
-          <motion.div
-            key={i}
-            className="absolute w-2 h-2 bg-nvfc-secondary rounded-full opacity-20"
-            initial={{
-              x: Math.random() * (typeof window !== 'undefined' ? window.innerWidth : 1000),
-              y: Math.random() * (typeof window !== 'undefined' ? window.innerHeight : 800),
-            }}
-            animate={{
-              y: [null, Math.random() * (typeof window !== 'undefined' ? window.innerHeight : 800)],
-              x: [null, Math.random() * (typeof window !== 'undefined' ? window.innerWidth : 1000)],
-            }}
-            transition={{
-              duration: Math.random() * 10 + 10,
-              repeat: Infinity,
-              repeatType: "reverse",
-            }}
-          />
-        ))}
-      </div>
-
       {/* Content - ALWAYS VISIBLE */}
       <div className="absolute inset-0 flex items-center" style={{ zIndex: 10 }}>
         <div className="container-custom w-full">
