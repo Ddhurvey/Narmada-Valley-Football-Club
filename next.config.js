@@ -4,9 +4,6 @@ const nextConfig = {
     domains: ['firebasestorage.googleapis.com'],
     formats: ['image/avif', 'image/webp'],
   },
-  experimental: {
-    serverActions: true,
-  },
   // PWA configuration will be added via next-pwa plugin
 };
 

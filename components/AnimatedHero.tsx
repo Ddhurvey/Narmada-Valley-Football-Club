@@ -83,7 +83,7 @@ const AnimatedHero: React.FC<AnimatedHeroProps> = ({
       </div>
 
       {/* Animated particles */}
-      <div className="absolute inset-0 z-10">
+      <div className="absolute inset-0 z-5">
         {[...Array(20)].map((_, i) => (
           <motion.div
             key={i}
