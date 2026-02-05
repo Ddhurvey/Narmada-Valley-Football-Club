@@ -288,8 +288,12 @@ export async function signOut() {
  */
 export async function getUserProfile(uid: string): Promise<UserProfile | null> {
   try {
-    const userDoc = await getDoc(doc(db, "users", uid));
-    if (userDoc.exists()) {
+    const userDoc = await withTimeout(
+      getDoc(doc(db, "users", uid)),
+      2000, 
+      null
+    );
+    if (userDoc && userDoc.exists()) {
       return userDoc.data() as UserProfile;
     }
     return null;

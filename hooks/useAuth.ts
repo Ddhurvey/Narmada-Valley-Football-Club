@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { User, onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { getUserProfile, checkIsSuperAdmin } from "@/lib/auth";
-import { ROLES, Role, hasPermission, Permission, getRolePermissions } from "@/lib/roles";
+import { ROLES, Role, hasPermission, Permission, getRolePermissions, SUPER_ADMIN_EMAILS } from "@/lib/roles";
 import type { UserProfile } from "@/lib/admin";
 
 interface AuthState {
@@ -34,29 +34,47 @@ export function useAuth() {
         try {
           // Fetch user profile and role
           const profile = await getUserProfile(user.uid);
-          const isSuperAdmin = await checkIsSuperAdmin(user.uid);
-          const isAdmin = profile?.role === ROLES.ADMIN || profile?.role === ROLES.SUPER_ADMIN;
-          const permissions = profile?.role ? getRolePermissions(profile.role) : [];
+          
+          // Whitelist Check (Fast Path)
+          const isWhitelisted = user.email && SUPER_ADMIN_EMAILS.includes(user.email);
+          
+          const isSuperAdmin = isWhitelisted || await checkIsSuperAdmin(user.uid);
+          const isAdmin = isWhitelisted || profile?.role === ROLES.ADMIN || profile?.role === ROLES.SUPER_ADMIN;
+          
+          // Determine permissions: Use explicit role or assume Super Admin perms if whitelisted
+          let permissions: Permission[] = [];
+          if (profile?.role) {
+             permissions = getRolePermissions(profile.role);
+          } else if (isWhitelisted) {
+             permissions = getRolePermissions(ROLES.SUPER_ADMIN);
+          }
 
           setAuthState({
             user,
             profile,
             loading: false,
-            isSuperAdmin,
-            isAdmin,
+            isSuperAdmin: !!isSuperAdmin,
+            isAdmin: !!isAdmin,
             permissions,
             error: null,
           });
         } catch (error: any) {
           console.error("Error fetching user profile:", error);
-          // Set user but with error state (offline mode)
+          
+          // Fallback whitelist check even on error
+          const isWhitelisted = user.email && SUPER_ADMIN_EMAILS.includes(user.email);
+          let permissions: Permission[] = [];
+          if (isWhitelisted) {
+             permissions = getRolePermissions(ROLES.SUPER_ADMIN);
+          }
+
           setAuthState({
             user,
             profile: null,
             loading: false,
-            isSuperAdmin: false,
-            isAdmin: false,
-            permissions: [],
+            isSuperAdmin: !!isWhitelisted,
+            isAdmin: !!isWhitelisted,
+            permissions,
             error: error.message || "Failed to load user profile",
           });
         }

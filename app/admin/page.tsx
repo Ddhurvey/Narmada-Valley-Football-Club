@@ -3,6 +3,7 @@
 import React from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
+import { getAllUsers } from "@/lib/admin";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Link from "next/link";
@@ -11,6 +12,21 @@ import { motion } from "framer-motion";
 export default function AdminDashboard() {
   const { user, isAdmin, loading } = useAuth();
   const router = useRouter();
+  const [userCount, setUserCount] = React.useState<string | number>("...");
+
+  React.useEffect(() => {
+    async function fetchStats() {
+      try {
+        const users = await getAllUsers();
+        setUserCount(users.length);
+      } catch (error) {
+        setUserCount("Error");
+      }
+    }
+    if (isAdmin) {
+      fetchStats();
+    }
+  }, [isAdmin]);
 
   React.useEffect(() => {
     if (!loading && !isAdmin) {
@@ -42,11 +58,13 @@ export default function AdminDashboard() {
     { title: "Audit Logs", icon: "📋", href: "/admin/audit", color: "gray", adminOnly: true },
   ];
 
+
+
   const stats = [
-    { label: "Total Users", value: "1,234", icon: "👤", color: "blue" },
-    { label: "Active Members", value: "567", icon: "⭐", color: "yellow" },
-    { label: "Tickets Sold", value: "2,890", icon: "🎫", color: "green" },
-    { label: "Revenue", value: "₹4.5L", icon: "💰", color: "purple" },
+    { label: "Total Users", value: userCount, icon: "👤", color: "blue" },
+    { label: "Active Members", value: "0", icon: "⭐", color: "yellow" },
+    { label: "Tickets Sold", value: "0", icon: "🎫", color: "green" },
+    { label: "Revenue", value: "₹0", icon: "💰", color: "purple" },
   ];
 
   return (

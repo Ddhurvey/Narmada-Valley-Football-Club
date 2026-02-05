@@ -16,6 +16,7 @@ export default function RoleManagementPage() {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !isSuperAdmin) {
@@ -31,8 +32,19 @@ export default function RoleManagementPage() {
 
   async function loadUsers() {
     setLoading(true);
-    const allUsers = await getAllUsers();
-    setUsers(allUsers);
+    setError(null);
+    try {
+        const allUsers = await getAllUsers();
+        setUsers(allUsers);
+        
+        if (allUsers.length === 0) {
+            // If legitimate 0 users (unlikely) or masked error
+            console.log("No users returned from DB.");
+        }
+    } catch (e: any) {
+         console.error("Failed to load users:", e);
+         setError("Failed to load users. Connection to database might be blocked (Firewall/AdBlocker).");
+    }
     setLoading(false);
   }
 
@@ -159,11 +171,80 @@ export default function RoleManagementPage() {
           ))}
         </div>
 
+        {/* Self-Heal Banner: If current user is missing from DB list */}
+        {user && !users.find(u => u.uid === user.uid) && !loading && (
+             <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+                <div className="flex justify-between items-center">
+                    <div className="flex">
+                        <div className="flex-shrink-0">
+                            <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                            </svg>
+                        </div>
+                        <div className="ml-3">
+                            <p className="text-sm text-yellow-700">
+                                <span className="font-bold">Profile Missing:</span> Your user profile was not found in the database (likely due to network block during login).
+                            </p>
+                        </div>
+                    </div>
+                    <Button 
+                        size="sm" 
+                        variant="primary"
+                        onClick={async () => {
+                            if (!user) return;
+                            try {
+                                setLoading(true);
+                                // Manual import to avoid conflicts
+                                const { doc, setDoc, Timestamp } = await import("firebase/firestore");
+                                const { db } = await import("@/lib/firebase");
+                                const { ROLES, USER_STATUS } = await import("@/lib/roles"); // Assuming this path
+                                
+                                await setDoc(doc(db, "users", user.uid), {
+                                    uid: user.uid,
+                                    email: user.email,
+                                    displayName: user.displayName || "Admin",
+                                    role: ROLES.SUPER_ADMIN, // Use correct constant
+                                    status: "active",
+                                    createdAt: Timestamp.now(),
+                                    updatedAt: Timestamp.now()
+                                });
+                                alert("Profile Synced! Reloading...");
+                                loadUsers();
+                            } catch (e: any) {
+                                alert("Sync Failed: " + e.message);
+                                setLoading(false);
+                            }
+                        }}
+                    >
+                        Fix Profile
+                    </Button>
+                </div>
+            </div>
+        )}
+
+        {/* Error Banner */}
+        {error && (
+            <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6">
+                <div className="flex">
+                    <div className="flex-shrink-0">
+                        <svg className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                        </svg>
+                    </div>
+                    <div className="ml-3">
+                        <p className="text-sm text-red-700">
+                            {error}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        )}
+
         {/* Users Table */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
         >
           <Card className="overflow-hidden">
             <div className="overflow-x-auto">
@@ -230,8 +311,8 @@ export default function RoleManagementPage() {
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex justify-end gap-2">
-                            {/* Cannot modify Super Admin */}
-                            {isTargetSuperAdmin ? (
+                            {/* Cannot modify Super Admin OR Self */}
+                            {isTargetSuperAdmin || isCurrentUser ? (
                               <span className="text-xs text-gray-400 italic">Protected</span>
                             ) : (
                               <>
