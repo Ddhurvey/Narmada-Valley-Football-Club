@@ -22,10 +22,12 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0
 const auth = getAuth(app);
 
 // Initialize Firestore with modern persistence settings
+// Long-polling helps when WebChannel is blocked by ad-blockers/firewalls
 const db = initializeFirestore(app, {
   localCache: persistentLocalCache({
     tabManager: persistentMultipleTabManager()
-  })
+  }),
+  experimentalForceLongPolling: true,
 });
 
 const storage = getStorage(app);

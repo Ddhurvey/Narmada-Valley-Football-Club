@@ -3,7 +3,19 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
-import { getAllUsers, createAdmin, removeAdmin, blockUser, unblockUser } from "@/lib/admin";
+import {
+  getAllUsers,
+  createAdmin,
+  removeAdmin,
+  blockUser,
+  unblockUser,
+  createSuperAdminTransferRequest,
+  getTransferRequestForUser,
+  getAllTransferRequests,
+  acceptTransferRequest,
+  completeTransferRequest,
+  type SuperAdminTransferRequest,
+} from "@/lib/admin";
 import { PERMISSIONS, ROLES } from "@/lib/roles";
 import type { UserProfile } from "@/lib/admin";
 import Card from "@/components/ui/Card";
@@ -14,6 +26,8 @@ export default function RoleManagementPage() {
   const { user, isSuperAdmin, can, loading: authLoading } = useAuth();
   const router = useRouter();
   const [users, setUsers] = useState<UserProfile[]>([]);
+  const [transferRequest, setTransferRequest] = useState<SuperAdminTransferRequest | null>(null);
+  const [allTransferRequests, setAllTransferRequests] = useState<SuperAdminTransferRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -23,6 +37,12 @@ export default function RoleManagementPage() {
       router.push("/dashboard");
     }
   }, [authLoading, isSuperAdmin, router]);
+
+  useEffect(() => {
+    if (!authLoading && !isSuperAdmin) {
+      setLoading(false);
+    }
+  }, [authLoading, isSuperAdmin]);
 
   useEffect(() => {
     if (isSuperAdmin) {
@@ -36,6 +56,16 @@ export default function RoleManagementPage() {
     try {
         const allUsers = await getAllUsers();
         setUsers(allUsers);
+
+        if (user) {
+          if (isSuperAdmin) {
+            const requests = await getAllTransferRequests();
+            setAllTransferRequests(requests);
+          } else {
+            const req = await getTransferRequestForUser(user.uid);
+            setTransferRequest(req);
+          }
+        }
         
         if (allUsers.length === 0) {
             // If legitimate 0 users (unlikely) or masked error
@@ -45,6 +75,52 @@ export default function RoleManagementPage() {
          setError("Failed to load users. Connection to database might be blocked (Firewall/AdBlocker).");
     }
     setLoading(false);
+  }
+
+  async function handleSendTransferRequest(targetUser: UserProfile) {
+    if (!user || !user.email) return;
+
+    const confirmed = confirm(`Send Super Admin transfer request to ${targetUser.displayName}?`);
+    if (!confirmed) return;
+
+    setActionLoading(targetUser.uid);
+    const result = await createSuperAdminTransferRequest(user.uid, user.email, targetUser);
+    if (result.success) {
+      await loadUsers();
+      alert("Transfer request sent. Admin must accept.");
+    } else {
+      alert(`Error: ${result.error}`);
+    }
+    setActionLoading(null);
+  }
+
+  async function handleAcceptTransfer() {
+    if (!user) return;
+    setActionLoading(user.uid);
+    const result = await acceptTransferRequest(user.uid);
+    if (result.success) {
+      await loadUsers();
+      alert("Request accepted. Wait for Super Admin to complete transfer.");
+    } else {
+      alert(`Error: ${result.error}`);
+    }
+    setActionLoading(null);
+  }
+
+  async function handleCompleteTransfer(targetUID: string) {
+    if (!user) return;
+    const confirmed = confirm("This will transfer Super Admin to the selected admin. Continue?");
+    if (!confirmed) return;
+    setActionLoading(targetUID);
+    const result = await completeTransferRequest(user.uid, targetUID);
+    if (result.success) {
+      alert("Transfer completed. You are now Admin.");
+      await loadUsers();
+      router.push("/dashboard");
+    } else {
+      alert(`Error: ${result.error}`);
+    }
+    setActionLoading(null);
   }
 
   async function handlePromoteToAdmin(targetUser: UserProfile) {
@@ -169,6 +245,78 @@ export default function RoleManagementPage() {
             </motion.div>
           ))}
         </div>
+
+        {/* Super Admin Transfer */}
+        {!loading && user && (
+          <div className="mb-6">
+            {isSuperAdmin ? (
+              <Card className="p-6">
+                <h2 className="text-lg font-semibold text-nvfc-dark mb-2">Super Admin Transfer</h2>
+                <p className="text-sm text-gray-600 mb-4">Send a transfer request to an Admin. They must accept.</p>
+                <div className="space-y-3">
+                  {users
+                    .filter((u) => u.role === ROLES.ADMIN)
+                    .map((admin) => {
+                      const existingReq = allTransferRequests.find((r) => r.targetUID === admin.uid && r.status !== "completed");
+                      return (
+                        <div key={admin.uid} className="flex items-center justify-between gap-4">
+                          <div>
+                            <div className="font-medium text-gray-900">{admin.displayName}</div>
+                            <div className="text-sm text-gray-600">{admin.email}</div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {existingReq?.status === "pending" && (
+                              <span className="text-xs text-yellow-600">Pending</span>
+                            )}
+                            {existingReq?.status === "accepted" && (
+                              <Button
+                                size="sm"
+                                variant="primary"
+                                onClick={() => handleCompleteTransfer(admin.uid)}
+                                isLoading={actionLoading === admin.uid}
+                              >
+                                Complete Transfer
+                              </Button>
+                            )}
+                            {!existingReq && (
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => handleSendTransferRequest(admin)}
+                                isLoading={actionLoading === admin.uid}
+                              >
+                                Send Request
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  {users.filter((u) => u.role === ROLES.ADMIN).length === 0 && (
+                    <div className="text-sm text-gray-600">No Admins available for transfer.</div>
+                  )}
+                </div>
+              </Card>
+            ) : (
+              transferRequest?.status === "pending" && (
+                <Card className="p-6">
+                  <h2 className="text-lg font-semibold text-nvfc-dark mb-2">Super Admin Transfer Request</h2>
+                  <p className="text-sm text-gray-600 mb-4">
+                    You have a request from {transferRequest.invitedByEmail}. Accept to become Super Admin.
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={handleAcceptTransfer}
+                    isLoading={actionLoading === user.uid}
+                  >
+                    Accept Request
+                  </Button>
+                </Card>
+              )
+            )}
+          </div>
+        )}
 
         {/* Self-Heal Banner: If current user is missing from DB list */}
         {user && !users.find(u => u.uid === user.uid) && !loading && (

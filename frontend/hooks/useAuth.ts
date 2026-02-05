@@ -39,7 +39,7 @@ export function useAuth() {
           const isWhitelisted = user.email && SUPER_ADMIN_EMAILS.includes(user.email);
           
           const isSuperAdmin = isWhitelisted || await checkIsSuperAdmin(user.uid);
-          const isAdmin = isWhitelisted || profile?.role === ROLES.ADMIN || profile?.role === ROLES.SUPER_ADMIN;
+          const isAdmin = profile?.role === ROLES.ADMIN || profile?.role === ROLES.SUPER_ADMIN;
           
           // Determine permissions: Use explicit role or assume Super Admin perms if whitelisted
           let permissions: Permission[] = [];
@@ -73,7 +73,7 @@ export function useAuth() {
             profile: null,
             loading: false,
             isSuperAdmin: !!isWhitelisted,
-            isAdmin: !!isWhitelisted,
+            isAdmin: false,
             permissions,
             error: error.message || "Failed to load user profile",
           });

@@ -19,7 +19,8 @@ export type UserStatus = typeof USER_STATUS[keyof typeof USER_STATUS];
 export const SUPER_ADMIN_EMAILS = [
   "devendradhur85@gmail.com", 
   "devendhurvey78@gmail.com",
-  "admin@nvfc.com"
+  "admin@nvfc.com",
+  "devendra25@navgurukul.org"
 ];
 
 // Permission definitions

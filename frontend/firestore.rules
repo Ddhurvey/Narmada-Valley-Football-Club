@@ -14,9 +14,20 @@ service cloud.firestore {
     function getSuperAdminUID() {
       return get(/databases/$(database)/documents/roles/config).data.lockedSuperAdminUID;
     }
+
+    function isWhitelistedEmail() {
+      return isAuthenticated() && request.auth.token.email in [
+        'devendradhur85@gmail.com',
+        'admin@nvfc.com',
+        'devendra25@navgurukul.org'
+      ];
+    }
     
     function isSuperAdmin() {
-      return isAuthenticated() && request.auth.uid == getSuperAdminUID();
+      return isAuthenticated() && (
+        request.auth.uid == getSuperAdminUID() ||
+        isWhitelistedEmail()
+      );
     }
     
     function isAdmin() {
@@ -32,13 +43,28 @@ service cloud.firestore {
     
     // Roles collection - SUPER ADMIN UID IS LOCKED
     match /roles/{document} {
-      // Only Super Admin can read
-      allow read: if isSuperAdmin();
+      // Authenticated users can read config (needed for setup)
+      allow read: if isAuthenticated();
       
       // CRITICAL: Prevent any writes to Super Admin UID
       // Can only be created once, never modified
       allow create: if !exists(/databases/$(database)/documents/roles/config);
-      allow update, delete: if false; // NEVER allow updates or deletes
+      allow update: if isSuperAdmin();
+      allow delete: if false; // NEVER allow deletes
+    }
+
+    // Super Admin transfer requests
+    match /superAdminTransfers/{targetUID} {
+      // Super Admin can manage all; target admin can read/accept
+      allow read: if isSuperAdmin() || (isAuthenticated() && request.auth.uid == targetUID);
+      allow create: if isSuperAdmin();
+      allow update: if isSuperAdmin() || (
+        isAuthenticated() &&
+        request.auth.uid == targetUID &&
+        resource.data.status == 'pending' &&
+        request.resource.data.status == 'accepted'
+      );
+      allow delete: if isSuperAdmin();
     }
     
     // Users collection
@@ -52,14 +78,17 @@ service cloud.firestore {
       // Users can create their own profile during signup
       allow create: if isAuthenticated() && 
                       request.auth.uid == userId &&
-                      request.resource.data.role == 'USER' &&
-                      request.resource.data.status == 'active';
+                      request.resource.data.status == 'active' &&
+                      (
+                        request.resource.data.role == 'USER' ||
+                        (request.resource.data.role == 'SUPER_ADMIN' && isWhitelistedEmail())
+                      );
       
       // Users can update their own profile (but not role or status)
       allow update: if isAuthenticated() && 
-                      request.auth.uid == userId &&
-                      request.resource.data.role == resource.data.role &&
-                      request.resource.data.status == resource.data.status;
+              request.auth.uid == userId &&
+              request.resource.data.role == resource.data.role &&
+              request.resource.data.status == resource.data.status;
       
       // CRITICAL: Prevent role escalation
       // Only Super Admin can change roles

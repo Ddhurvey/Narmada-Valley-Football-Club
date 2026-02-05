@@ -12,7 +12,7 @@ import {
 import { doc, setDoc, getDoc, updateDoc, Timestamp, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "./firebase";
 import { ROLES, Role, USER_STATUS, SUPER_ADMIN_EMAILS } from "./roles";
-import { getSuperAdminUID, setSuperAdminUID, isSuperAdmin, logAudit } from "./admin";
+import { setSuperAdminUID, isSuperAdmin, logAudit } from "./admin";
 import type { UserProfile } from "./admin";
 
 /**
@@ -28,16 +28,10 @@ export async function signUp(
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
 
-    // Check if this is the first user (Super Admin)
-    const superAdminUID = await getSuperAdminUID();
-    const isFirstUser = !superAdminUID;
-
     let role: Role = ROLES.USER;
-
-    if (isFirstUser) {
-      // First user becomes Super Admin
+    const superAdminSet = await setSuperAdminUID(user.uid);
+    if (superAdminSet) {
       role = ROLES.SUPER_ADMIN;
-      await setSuperAdminUID(user.uid);
     }
 
     // Create user profile in Firestore
@@ -57,7 +51,7 @@ export async function signUp(
     await logAudit({
       userId: user.uid,
       userName: displayName,
-      action: isFirstUser ? "SUPER_ADMIN_CREATED" : "USER_SIGNUP",
+      action: superAdminSet ? "SUPER_ADMIN_CREATED" : "USER_SIGNUP",
       resource: "user",
       resourceId: user.uid,
       timestamp: Timestamp.now(),
