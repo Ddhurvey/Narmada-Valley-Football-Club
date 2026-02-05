@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
-import { NewsArticle, getAllNews, deleteNewsArticle, createNewsArticle, CATEGORIES } from "@/lib/news";
+import { NewsArticle, getAllNews, deleteNewsArticle, createNewsArticle, updateNewsArticle, CATEGORIES } from "@/lib/news";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 
@@ -13,11 +13,15 @@ export default function AdminNewsPage() {
   const router = useRouter();
   const [articles, setArticles] = useState<NewsArticle[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
 
   // Form State
-  const [formData, setFormData] = useState({
+  const initialFormState = {
     title: "",
     excerpt: "",
     content: "",
@@ -25,7 +29,8 @@ export default function AdminNewsPage() {
     image: "",
     author: "NVFC Media Team",
     isPublished: true
-  });
+  };
+  const [formData, setFormData] = useState(initialFormState);
 
   useEffect(() => {
     if (!authLoading && !isAdmin) {
@@ -53,27 +58,47 @@ export default function AdminNewsPage() {
     loadNews();
   }
 
+  function handleEdit(article: NewsArticle) {
+    setFormData({
+        title: article.title,
+        excerpt: article.excerpt,
+        content: article.content,
+        category: article.category,
+        image: article.image,
+        author: article.author,
+        isPublished: article.isPublished
+    });
+    setEditId(article.id);
+    setIsEditing(true);
+    setIsModalOpen(true);
+  }
+
+  function handleCloseModal() {
+    setIsModalOpen(false);
+    setIsEditing(false);
+    setEditId(null);
+    setFormData(initialFormState);
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setIsSubmitting(true);
 
-    const result = await createNewsArticle(formData);
+    let result;
+    if (isEditing && editId) {
+        // Update Logic
+        result = await updateNewsArticle(editId, formData);
+    } else {
+        // Create Logic
+        result = await createNewsArticle(formData);
+    }
     
     if (result.success) {
-      alert("Article published successfully!");
-      setIsModalOpen(false);
-      setFormData({
-        title: "",
-        excerpt: "",
-        content: "",
-        category: CATEGORIES[0],
-        image: "",
-        author: "NVFC Media Team",
-        isPublished: true
-      });
+      alert(isEditing ? "Article updated successfully!" : "Article published successfully!");
+      handleCloseModal();
       loadNews();
     } else {
-      alert("Failed to publish: " + result.error);
+      alert("Failed: " + result.error);
     }
     
     setIsSubmitting(false);
@@ -90,7 +115,7 @@ export default function AdminNewsPage() {
            <h1 className="text-4xl font-bold text-nvfc-dark">News Management</h1>
            <p className="text-gray-600">Manage club news and announcements</p>
         </div>
-        <Button onClick={() => setIsModalOpen(true)} variant="primary">
+        <Button onClick={() => { setFormData(initialFormState); setIsEditing(false); setIsModalOpen(true); }} variant="primary">
             + Write Article
         </Button>
       </div>
@@ -111,9 +136,9 @@ export default function AdminNewsPage() {
                   >
                       <Card className="p-6 flex flex-col md:flex-row gap-6 items-start md:items-center">
                           {/* Thumbnail */}
-                          <div className="w-full md:w-32 h-20 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <div className="w-full md:w-32 h-20 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden relative">
                                 {article.image ? (
-                                    <span className="text-xs text-gray-500">Image</span>
+                                    <img src={article.image} alt={article.title} className="w-full h-full object-cover" />
                                 ) : (
                                     <span className="text-2xl">📰</span>
                                 )}
@@ -136,7 +161,7 @@ export default function AdminNewsPage() {
 
                           {/* Actions */}
                           <div className="flex gap-2">
-                              <Button variant="outline" size="sm" onClick={() => alert("Edit Feature Coming Soon")}>
+                              <Button variant="outline" size="sm" onClick={() => handleEdit(article)}>
                                   Edit
                               </Button>
                               <Button 
@@ -154,7 +179,7 @@ export default function AdminNewsPage() {
           </div>
       )}
 
-      {/* CREATE MODAL */}
+      {/* CREATE/EDIT MODAL */}
       {isModalOpen && (
           <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
               <motion.div 
@@ -163,8 +188,8 @@ export default function AdminNewsPage() {
                 className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
               >
                   <div className="p-6 border-b flex justify-between items-center sticky top-0 bg-white">
-                      <h2 className="text-xl font-bold">Write New Article</h2>
-                      <button onClick={() => setIsModalOpen(false)} className="text-gray-500 hover:text-gray-700">✕</button>
+                      <h2 className="text-xl font-bold">{isEditing ? "Edit Article" : "Write New Article"}</h2>
+                      <button onClick={handleCloseModal} className="text-gray-500 hover:text-gray-700">✕</button>
                   </div>
                   
                   <form onSubmit={handleSubmit} className="p-6 space-y-4">
@@ -219,6 +244,19 @@ export default function AdminNewsPage() {
                           </div>
                       </div>
 
+                      {/* Image URL */}
+                      <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Image URL</label>
+                          <input 
+                            type="text" 
+                            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-nvfc-primary outline-none"
+                            placeholder="https://example.com/image.jpg"
+                            value={formData.image}
+                            onChange={(e) => setFormData({...formData, image: e.target.value})}
+                          />
+                          <p className="text-xs text-gray-400 mt-1">Provide a direct link to an image (e.g. from Imgur, Unsplash, or your own hosting).</p>
+                      </div>
+
                       {/* Content */}
                       <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Main Content</label>
@@ -237,7 +275,7 @@ export default function AdminNewsPage() {
                             type="button" 
                             variant="outline" 
                             className="w-1/3"
-                            onClick={() => setIsModalOpen(false)}
+                            onClick={handleCloseModal}
                           >
                               Cancel
                           </Button>
@@ -247,7 +285,7 @@ export default function AdminNewsPage() {
                             className="w-2/3"
                             isLoading={isSubmitting}
                           >
-                              Publish Article
+                              {isEditing ? "Update Article" : "Publish Article"}
                           </Button>
                       </div>
                   </form>

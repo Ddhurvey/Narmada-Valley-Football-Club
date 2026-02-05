@@ -45,7 +45,7 @@ export async function getAllNews(): Promise<NewsArticle[]> {
 /**
  * Create a new news article
  */
-export async function createNewsArticle(article: Omit<NewsArticle, "id" | "createdAt" | "date">): Promise<{ success: boolean; error?: string }> {
+export async function createNewsArticle(article: Omit<NewsArticle, "id" | "createdAt" | "date" | "slug">): Promise<{ success: boolean; error?: string }> {
   try {
     const slug = article.title
       .toLowerCase()

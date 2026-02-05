@@ -6,90 +6,35 @@ import Button from "@/components/ui/Button";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { formatDate } from "@/lib/utils";
-
-// Mock news data - will be replaced with Firestore
-const mockNews = [
-  {
-    id: "1",
-    title: "NVFC Signs Star Midfielder from European League",
-    slug: "nvfc-signs-star-midfielder",
-    excerpt: "Exciting new addition to strengthen the squad for the upcoming season. The club announces a major signing that will boost our midfield capabilities.",
-    content: "Full article content here...",
-    image: "/news/signing.jpg",
-    date: "2026-02-01",
-    category: "Transfers",
-    author: "NVFC Media Team",
-  },
-  {
-    id: "2",
-    title: "Match Preview: NVFC vs Rivals FC - Derby Day",
-    slug: "match-preview-nvfc-vs-rivals",
-    excerpt: "Everything you need to know about this weekend's crucial derby fixture. Team news, stats, and predictions for the big game.",
-    content: "Full article content here...",
-    image: "/news/preview.jpg",
-    date: "2026-02-02",
-    category: "Match Preview",
-    author: "John Smith",
-  },
-  {
-    id: "3",
-    title: "Youth Academy Success: Three Players Promoted",
-    slug: "youth-academy-success",
-    excerpt: "Three academy players called up to first team training. A testament to our excellent youth development program.",
-    content: "Full article content here...",
-    image: "/news/youth.jpg",
-    date: "2026-02-03",
-    category: "Academy",
-    author: "Sarah Johnson",
-  },
-  {
-    id: "4",
-    title: "NVFC Foundation Launches Community Initiative",
-    slug: "community-initiative-launch",
-    excerpt: "New program aims to support local youth football development and provide opportunities for underprivileged children.",
-    content: "Full article content here...",
-    image: "/news/community.jpg",
-    date: "2026-01-30",
-    category: "Community",
-    author: "NVFC Foundation",
-  },
-  {
-    id: "5",
-    title: "Captain's Interview: Looking Ahead to Crucial Month",
-    slug: "captain-interview-february",
-    excerpt: "Our captain discusses the team's form, upcoming fixtures, and ambitions for the rest of the season.",
-    content: "Full article content here...",
-    image: "/news/captain.jpg",
-    date: "2026-01-28",
-    category: "Interviews",
-    author: "Media Team",
-  },
-  {
-    id: "6",
-    title: "New Kit Launch: 2026 Home Jersey Revealed",
-    slug: "new-kit-launch-2026",
-    excerpt: "Check out our stunning new home kit for the 2026 season. Available now in the official store.",
-    content: "Full article content here...",
-    image: "/news/kit.jpg",
-    date: "2026-01-25",
-    category: "Commercial",
-    author: "NVFC Store",
-  },
-];
+import { NewsArticle, getAllNews } from "@/lib/news";
 
 export default function NewsPage() {
+  const [news, setNews] = useState<NewsArticle[]>([]);
+  const [filteredNews, setFilteredNews] = useState<NewsArticle[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState("All");
-  const [filteredNews, setFilteredNews] = useState(mockNews);
 
   const categories = ["All", "Transfers", "Match Preview", "Academy", "Community", "Interviews", "Commercial"];
 
   useEffect(() => {
-    if (selectedCategory === "All") {
-      setFilteredNews(mockNews);
-    } else {
-      setFilteredNews(mockNews.filter((news) => news.category === selectedCategory));
+    async function fetchNews() {
+        const data = await getAllNews();
+        // Only show published articles for public
+        const published = data.filter(item => item.isPublished);
+        setNews(published);
+        setFilteredNews(published);
+        setLoading(false);
     }
-  }, [selectedCategory]);
+    fetchNews();
+  }, []);
+
+  useEffect(() => {
+    if (selectedCategory === "All") {
+      setFilteredNews(news);
+    } else {
+      setFilteredNews(news.filter((item) => item.category === selectedCategory));
+    }
+  }, [selectedCategory, news]);
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -146,8 +91,16 @@ export default function NewsPage() {
               <Link href={`/news/${news.slug}`}>
                 <Card hover className="h-full overflow-hidden">
                   {/* Image */}
-                  <div className="aspect-video bg-gradient-to-br from-nvfc-primary to-nvfc-accent flex items-center justify-center text-white text-5xl">
-                    📰
+                  <div className="aspect-video bg-gradient-to-br from-nvfc-primary to-nvfc-accent flex items-center justify-center text-white text-5xl overflow-hidden relative">
+                    {news.image ? (
+                        <img 
+                            src={news.image} 
+                            alt={news.title} 
+                            className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
+                        />
+                    ) : (
+                        <span>📰</span>
+                    )}
                   </div>
 
                   {/* Content */}
