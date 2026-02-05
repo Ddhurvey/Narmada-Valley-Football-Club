@@ -25,19 +25,11 @@ export default function AdminLayout({
       return;
     }
 
-    // DEV MODE BYPASS CHECK
-    if (typeof window !== "undefined" && localStorage.getItem("nvfc_dev_bypass") === "true") {
-        setLoading(false);
-        setAuthorized(true);
-        return;
-    }
-
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         // FAST PATH: Check email whitelist immediately
         // This handles Google Login users and pre-approved admins instantly
         if (user.email && SUPER_ADMIN_EMAILS.includes(user.email)) {
-            console.log("Super Admin identified via whitelist:", user.email);
             setAuthorized(true); // Grant access immediately
             setLoading(false);
             return;

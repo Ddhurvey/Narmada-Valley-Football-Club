@@ -8,6 +8,8 @@ import Button from "@/components/ui/Button";
 import Link from "next/link";
 import { getTimeRemaining } from "@/lib/utils";
 
+import { getAllNews, NewsArticle } from "@/lib/news";
+
 export default function Home() {
   const [countdown, setCountdown] = useState({
     days: 0,
@@ -16,6 +18,18 @@ export default function Home() {
     seconds: 0,
     expired: false,
   });
+
+  const [latestNews, setLatestNews] = useState<NewsArticle[]>([]);
+
+  // Fetch Latest News
+  useEffect(() => {
+    async function fetchNews() {
+      const data = await getAllNews();
+      const published = data.filter(item => item.isPublished).slice(0, 3);
+      setLatestNews(published);
+    }
+    fetchNews();
+  }, []);
 
   // Next match countdown (example: 7 days from now)
   useEffect(() => {
@@ -29,33 +43,8 @@ export default function Home() {
     return () => clearInterval(interval);
   }, []);
 
-  // Mock data - will be replaced with Firebase
-  const latestNews = [
-    {
-      id: 1,
-      title: "NVFC Signs Star Midfielder",
-      excerpt: "Exciting new addition to strengthen the squad for upcoming season",
-      image: "/news1.jpg",
-      date: "2026-02-01",
-    },
-    {
-      id: 2,
-      title: "Match Preview: NVFC vs Rivals FC",
-      excerpt: "Everything you need to know about this weekend's crucial fixture",
-      image: "/news2.jpg",
-      date: "2026-02-02",
-    },
-    {
-      id: 3,
-      title: "Youth Academy Success",
-      excerpt: "Three academy players called up to first team training",
-      image: "/news3.jpg",
-      date: "2026-02-03",
-    },
-  ];
-
-  const standings = [
-    { 
+  // Standings Data
+  const standings = [    { 
       position: 1, 
       team: "Leaders FC", 
       played: 20, 
@@ -157,16 +146,25 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {latestNews.map((news, index) => (
-              <Card key={news.id} hover className="overflow-hidden">
-                <div className="aspect-video bg-gradient-to-br from-nvfc-primary to-nvfc-accent flex items-center justify-center text-white text-4xl">
-                  📰
+            {latestNews.map((news) => (
+              <Card key={news.id} hover className="overflow-hidden h-full flex flex-col">
+                <div className="aspect-video bg-gradient-to-br from-nvfc-primary to-nvfc-accent flex items-center justify-center text-white text-4xl overflow-hidden relative">
+                   {news.image ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img 
+                            src={news.image} 
+                            alt={news.title} 
+                            className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
+                        />
+                    ) : (
+                        <span>📰</span>
+                    )}
                 </div>
-                <div className="p-6">
+                <div className="p-6 flex flex-col flex-grow">
                   <p className="text-sm text-gray-500 mb-2">{news.date}</p>
-                  <h3 className="text-xl font-bold mb-3 text-nvfc-dark">{news.title}</h3>
-                  <p className="text-gray-600 mb-4">{news.excerpt}</p>
-                  <Link href={`/news/${news.id}`}>
+                  <h3 className="text-xl font-bold mb-3 text-nvfc-dark line-clamp-2">{news.title}</h3>
+                  <p className="text-gray-600 mb-4 line-clamp-3 flex-grow">{news.excerpt}</p>
+                  <Link href={`/news/${news.slug || news.id}`}>
                     <Button variant="ghost" size="sm">
                       Read More →
                     </Button>

@@ -29,14 +29,8 @@ export default function LoginPage() {
       return;
     }
 
-    // DEV BYPASS: If network is completely blocked, use this backdoor
-    if (SUPER_ADMIN_EMAILS.includes(email) && password === "dev-mode") {
-        console.log("⚠️ DEV MODE: Bypassing Firebase Auth");
-        localStorage.setItem("nvfc_dev_bypass", "true"); // Enable bypass in Layout
-        // Force redirect
-        router.push("/admin");
-        return;
-    }
+    // Validation passed
+
 
     try {
       const result = await signIn(email, password);

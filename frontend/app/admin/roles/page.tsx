@@ -39,7 +39,6 @@ export default function RoleManagementPage() {
         
         if (allUsers.length === 0) {
             // If legitimate 0 users (unlikely) or masked error
-            console.log("No users returned from DB.");
         }
     } catch (e: any) {
          console.error("Failed to load users:", e);
