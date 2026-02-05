@@ -32,7 +32,7 @@ export default function AboutPage() {
           >
             <h1 className="text-5xl md:text-6xl font-bold mb-6">About NVFC</h1>
             <p className="text-xl md:text-2xl text-gray-200 max-w-3xl mx-auto">
-              More than just a football club - we're a family, a community, and a symbol of pride for the Narmada Valley
+              More than just a football club - we&apos;re a family, a community, and a symbol of pride for the Narmada Valley
             </p>
           </motion.div>
         </div>
@@ -50,13 +50,13 @@ export default function AboutPage() {
             <h2 className="text-4xl font-bold text-nvfc-dark mb-6 text-center">Our Story</h2>
             <div className="prose prose-lg max-w-none text-gray-700">
               <p>
-                Founded in 2020, Narmada Valley Football Club emerged from a dream to bring top-tier football to the heart of the Narmada Valley. What started as a vision shared by a group of passionate football enthusiasts has grown into one of the region's most beloved sporting institutions.
+                Founded in 2020, Narmada Valley Football Club emerged from a dream to bring top-tier football to the heart of the Narmada Valley. What started as a vision shared by a group of passionate football enthusiasts has grown into one of the region&apos;s most beloved sporting institutions.
               </p>
               <p>
                 Our journey has been marked by determination, community support, and an unwavering commitment to excellence. From our humble beginnings in the regional leagues to competing at the highest levels, every step has been taken with our fans by our side.
               </p>
               <p>
-                Today, NVFC stands as a beacon of sporting achievement and community pride. We're not just building a football club; we're creating a legacy that will inspire generations to come.
+                Today, NVFC stands as a beacon of sporting achievement and community pride. We&apos;re not just building a football club; we&apos;re creating a legacy that will inspire generations to come.
               </p>
             </div>
           </motion.div>

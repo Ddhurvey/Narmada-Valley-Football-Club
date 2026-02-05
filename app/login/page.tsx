@@ -68,13 +68,10 @@ export default function LoginPage() {
         className="w-full max-w-md"
       >
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-3 mb-6">
-            <div className="w-16 h-16 relative">
-              <img src="/logo.png" alt="NVFC Logo" className="w-full h-full object-contain" />
-            </div>
-          </Link>
-          <h1 className="text-3xl font-bold text-white mb-2">Welcome Back</h1>
-          <p className="text-gray-300">Sign in to your NVFC account</p>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="NVFC Logo" className="w-20 h-20 mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-nvfc-dark">Welcome Back</h1>
+          <p className="text-gray-600">Sign in to your account</p>
         </div>
 
         <Card className="p-8">
@@ -172,7 +169,7 @@ export default function LoginPage() {
           </div>
 
           <div className="mt-6 text-center text-sm text-gray-600">
-            Don't have an account?{" "}
+            Don&apos;t have an account?{" "}
             <Link href="/signup" className="text-nvfc-primary hover:text-nvfc-accent font-semibold">
               Sign up
             </Link>

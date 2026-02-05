@@ -84,7 +84,7 @@ export default function AdminLayout({
         <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full text-center">
           <h1 className="text-2xl font-bold text-red-600 mb-4">Access Issue</h1>
           <p className="text-gray-600 mb-6">
-            We couldn't verify your admin permissions. This usually happens if
+            We couldn&apos;t verify your admin permissions. This usually happens if
             your connection is blocked (e.g., by an ad blocker).
           </p>
           <div className="flex flex-col gap-3">

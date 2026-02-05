@@ -280,7 +280,7 @@ export function applyTheme(theme: ThemeConfig): void {
       root.style.setProperty(`--color-${key}`, value);
     } else if (typeof value === "object") {
       Object.entries(value).forEach(([subKey, subValue]) => {
-        root.style.setProperty(`--color-${key}-${subKey}`, subValue);
+        root.style.setProperty(`--color-${key}-${subKey}`, String(subValue));
       });
     }
   });

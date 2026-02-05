@@ -44,6 +44,7 @@ export interface AuditLog {
   resource: string;
   resourceId: string;
   changes?: Record<string, any>;
+  details?: string | Record<string, any>;
   timestamp: Timestamp;
   ipAddress?: string;
 }

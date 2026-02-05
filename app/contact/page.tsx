@@ -88,10 +88,13 @@ export default function ContactPage() {
             >
               <Card className="p-8">
                 <h2 className="text-2xl font-bold text-nvfc-dark mb-6">Send us a Message</h2>
+                <p className="text-gray-600 mb-8">
+                  Have a question or feedback? We&apos;d love to hear from you. Fill out the form below and we&apos;ll get back to you as soon as possible.
+                </p>
 
                 {submitted && (
                   <div className="mb-6 p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg">
-                    Thank you for your message! We'll get back to you soon.
+                    Thank you for your message! We&apos;ll get back to you soon.
                   </div>
                 )}
 

@@ -79,7 +79,7 @@ export default function LiveMatchPage() {
                 <div className="text-6xl font-bold text-nvfc-dark mb-2">
                   {match.homeScore} - {match.awayScore}
                 </div>
-                <div className="text-xl text-gray-600">{match.minute}'</div>
+                <div className="text-xl text-gray-600">{match.minute}&apos;</div>
                 <div className="mt-2">
                   <span className="inline-block px-4 py-1 bg-green-500 text-white rounded-full text-sm font-semibold">
                     {match.status === "live" ? "LIVE" : match.status.toUpperCase()}
@@ -96,6 +96,19 @@ export default function LiveMatchPage() {
           </Card>
         </motion.div>
 
+        {/* No Live Matches Card (if no match is live) */}
+        {/* This section would be conditionally rendered based on whether there's a live match */}
+        {/* For now, it's placed here as an example */}
+        <Card className="p-6 mb-8">
+          <div className="text-center py-12">
+            <div className="text-6xl mb-4">📺</div>
+            <h3 className="text-2xl font-bold text-gray-700 mb-2">No Live Matches</h3>
+            <p className="text-gray-500 max-w-md mx-auto">
+              There are no matches currently being broadcast live. Check the schedule to see when we&apos;re next on air.
+            </p>
+          </div>
+        </Card>
+
         {/* Match Events */}
         <Card className="p-6">
           <h3 className="text-xl font-bold text-nvfc-dark mb-4">Match Events</h3>
@@ -108,7 +121,7 @@ export default function LiveMatchPage() {
                 className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg"
               >
                 <div className="w-12 h-12 bg-nvfc-primary rounded-full flex items-center justify-center text-white font-bold">
-                  {event.minute}'
+                  {event.minute}&apos;
                 </div>
                 <div className="flex-1">
                   <div className="font-semibold">{event.player}</div>

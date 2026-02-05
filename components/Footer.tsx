@@ -74,6 +74,7 @@ const Footer: React.FC = () => {
           {/* Logo & Description */}
           <div className="lg:col-span-1">
             <Link href="/" className="inline-block mb-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/logo.png" alt="NVFC Logo" className="h-20 w-auto" />
             </Link>
             <h3 className="text-xl font-bold mb-2">Narmada Valley FC</h3>

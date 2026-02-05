@@ -166,7 +166,7 @@ export default function PlayerProfilePage() {
                       className="text-center"
                     >
                       <div className="text-4xl font-bold text-nvfc-primary mb-2">
-                        {value}
+                        {String(value)}
                         {key === "passAccuracy" && "%"}
                       </div>
                       <div className="text-sm text-gray-600 capitalize">

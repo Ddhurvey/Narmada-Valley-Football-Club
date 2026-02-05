@@ -331,6 +331,16 @@ export const onAuthChange = (callback: (user: User | null) => void) => {
 /**
  * Update user profile information
  */
+export interface AuditLog {
+  id?: string;
+  userId: string;
+  userName?: string;
+  action: string;
+  resource?: string;
+  resourceId?: string;
+  timestamp: Timestamp;
+  details?: string | Record<string, any>;
+}
 export async function updateUserProfile(
   userId: string,
   updates: {
@@ -373,7 +383,7 @@ export async function updateUserProfile(
         resource: "user",
         resourceId: userId,
         timestamp: Timestamp.now(),
-        details: `Updated profile: `,
+        changes: { summary: "Updated profile" },
       });
     } catch (error) {
       console.warn("Could not log audit (likely offline)", error);

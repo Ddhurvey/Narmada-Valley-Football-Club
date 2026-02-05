@@ -33,6 +33,13 @@ export default function LayoutsPage() {
 
   const pages = ["home", "news", "fixtures", "players", "about", "contact"];
 
+  const loadLayouts = React.useCallback(async () => {
+    setLoading(true);
+    const pageLayouts = await getPageLayouts(selectedPage);
+    setLayouts(pageLayouts);
+    setLoading(false);
+  }, [selectedPage]);
+
   useEffect(() => {
     if (!authLoading && !isAdmin) {
       router.push("/");
@@ -43,14 +50,9 @@ export default function LayoutsPage() {
     if (isAdmin) {
       loadLayouts();
     }
-  }, [isAdmin, selectedPage]);
+  }, [isAdmin, selectedPage, loadLayouts]);
 
-  async function loadLayouts() {
-    setLoading(true);
-    const pageLayouts = await getPageLayouts(selectedPage);
-    setLayouts(pageLayouts);
-    setLoading(false);
-  }
+
 
   async function handleActivateLayout(layoutId: string) {
     const confirmed = confirm("Activate this layout? It will replace the current active layout.");

@@ -1,10 +1,12 @@
 "use client";
 
 import React, { HTMLAttributes } from "react";
-import { motion } from "framer-motion";
+import { motion, HTMLMotionProps } from "framer-motion";
 import { cn } from "@/lib/utils";
 
-export interface CardProps extends HTMLAttributes<HTMLDivElement> {
+export interface CardProps extends Omit<HTMLMotionProps<"div">, "children" | "onDrag" | "onDragStart" | "onDragEnd" | "onAnimationStart"> {
+  children: React.ReactNode;
+  className?: string;
   hover?: boolean;
   glass?: boolean;
 }
@@ -20,21 +22,9 @@ const Card: React.FC<CardProps> = ({
   const hoverStyles = hover ? "card-hover cursor-pointer" : "";
   const glassStyles = glass ? "glass" : "bg-white shadow-md";
 
-  const cardVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { 
-      opacity: 1, 
-      y: 0,
-      transition: { duration: 0.5, ease: "easeOut" }
-    },
-  };
-
   return (
     <motion.div
-      variants={cardVariants}
-      initial="hidden"
-      whileInView="visible"
-      viewport={{ once: true, margin: "-50px" }}
+      whileHover={hover ? { y: -5, transition: { duration: 0.2 } } : undefined}
       className={cn(baseStyles, glassStyles, hoverStyles, className)}
       {...props}
     >

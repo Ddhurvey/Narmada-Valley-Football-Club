@@ -87,6 +87,7 @@ export default function SignupPage() {
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-3 mb-6">
             <div className="w-16 h-16 relative">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/logo.png" alt="NVFC Logo" className="w-full h-full object-contain" />
             </div>
           </Link>

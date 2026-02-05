@@ -128,9 +128,11 @@ export default function GalleryPage() {
       <Card className="overflow-hidden h-full">
         <div className="relative aspect-video bg-gray-200">
           {item.type === "image" ? (
+            // eslint-disable-next-line @next/next/no-img-element
             <img src={item.url} alt={item.title} className="w-full h-full object-cover" />
           ) : (
             <div className="relative w-full h-full">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img 
                 src={item.thumbnail || "/logo.png"} 
                 alt={item.title} 
@@ -324,6 +326,7 @@ export default function GalleryPage() {
 
               <div className="aspect-video bg-gray-200 rounded-lg overflow-hidden mb-4">
                 {selectedItem.type === "image" ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img src={selectedItem.url} alt={selectedItem.title} className="w-full h-full object-contain" />
                 ) : (
                   <iframe

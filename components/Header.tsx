@@ -65,7 +65,7 @@ const Header: React.FC = () => {
               <span>
                 {liveScore.homeTeam} {liveScore.homeScore} - {liveScore.awayScore} {liveScore.awayTeam}
               </span>
-              <span className="text-xs opacity-90">{liveScore.minute}'</span>
+              <span className="text-xs opacity-90">{liveScore.minute}&apos;</span>
             </div>
           </div>
         </div>
@@ -86,6 +86,7 @@ const Header: React.FC = () => {
             {/* Logo */}
             <Link href="/" className="flex items-center gap-3 group">
               <div className="w-14 h-14 relative group-hover:scale-110 transition-transform">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img 
                   src="/logo.png" 
                   alt="NVFC Logo" 

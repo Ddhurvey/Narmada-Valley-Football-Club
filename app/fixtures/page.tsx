@@ -95,6 +95,7 @@ export default function FixturesPage() {
     const logo = teamLogos[team] || "⚽";
     
     if (logo.startsWith('/')) {
+      /* eslint-disable-next-line @next/next/no-img-element */
       return <img src={logo} alt={`${team} logo`} className="w-10 h-10 object-contain" />;
     }
     return <span className="text-3xl">{logo}</span>;

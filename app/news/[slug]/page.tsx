@@ -52,7 +52,7 @@ export default function NewsArticlePage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-4xl font-bold text-nvfc-dark mb-4">Article Not Found</h1>
-          <p className="text-gray-600 mb-6">The article you're looking for doesn't exist.</p>
+          <p className="text-gray-600 mb-6">The article you&apos;re looking for doesn&apos;t exist.</p>
           <Link href="/news">
             <Button variant="primary">Back to News</Button>
           </Link>
@@ -178,3 +178,4 @@ export default function NewsArticlePage() {
     </main>
   );
 }
+

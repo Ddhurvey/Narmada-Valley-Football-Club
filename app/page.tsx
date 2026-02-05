@@ -215,6 +215,7 @@ export default function Home() {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           {team.logo.startsWith('/') ? (
+                            // eslint-disable-next-line @next/next/no-img-element
                             <img 
                               src={team.logo} 
                               alt={`${team.team} logo`} 

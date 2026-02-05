@@ -157,7 +157,10 @@ export default function MediaPage() {
             <h3 className="text-xl font-bold text-nvfc-dark mb-4">Current Logo</h3>
             <div className="bg-gray-100 rounded-lg p-8 flex items-center justify-center mb-4">
               {logo ? (
-                <img src={logo} alt="Logo" className="max-h-32 object-contain" />
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={logo} alt="Logo" className="max-h-32 object-contain" />
+                </>
               ) : (
                 <div className="text-gray-400">No logo uploaded</div>
               )}
@@ -180,7 +183,14 @@ export default function MediaPage() {
             <h3 className="text-xl font-bold text-nvfc-dark mb-4">Hero Background</h3>
             <div className="bg-gray-100 rounded-lg p-8 flex items-center justify-center mb-4 aspect-video">
               {heroImage ? (
-                <img src={heroImage} alt="Hero" className="w-full h-full object-cover rounded" />
+                <div className="relative w-full h-full">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img 
+                    src={heroImage} 
+                    alt="Hero" 
+                    className="w-full h-full object-cover rounded" 
+                  />
+                </div>
               ) : (
                 <div className="text-gray-400">No hero image uploaded</div>
               )}

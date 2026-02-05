@@ -208,6 +208,7 @@ export default function ProfilePage() {
                 <div className="flex items-center gap-6">
                   <div className="w-24 h-24 bg-nvfc-primary rounded-full flex items-center justify-center text-white text-3xl font-bold overflow-hidden">
                     {currentPhotoURL ? (
+                      // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={currentPhotoURL}
                         alt="Profile"

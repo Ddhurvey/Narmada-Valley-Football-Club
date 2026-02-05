@@ -58,7 +58,7 @@ export default function AdminDashboard() {
           className="mb-8"
         >
           <h1 className="text-4xl font-bold text-nvfc-dark mb-2">Admin Dashboard</h1>
-          <p className="text-gray-600">Manage your club's digital presence</p>
+          <p className="text-gray-600">Manage your club&apos;s digital presence</p>
         </motion.div>
 
         {/* Stats */}
