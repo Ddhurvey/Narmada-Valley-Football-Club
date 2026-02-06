@@ -9,6 +9,9 @@ import {
   query,
   where,
   orderBy,
+  QuerySnapshot,
+  QueryDocumentSnapshot,
+  DocumentData,
   Timestamp,
   addDoc,
 } from "firebase/firestore";
@@ -166,7 +169,10 @@ export async function getAllUsers(): Promise<UserProfile[]> {
     if (!snapshot) {
       throw new Error("Timed out fetching users");
     }
-    return snapshot.docs.map((doc) => doc.data() as UserProfile);
+    const typedSnapshot = snapshot as QuerySnapshot<DocumentData>;
+    return typedSnapshot.docs.map((userDoc: QueryDocumentSnapshot<DocumentData>) =>
+      userDoc.data() as UserProfile
+    );
   } catch (error) {
     console.error("Error fetching all users:", error);
     return [];

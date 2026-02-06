@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { Suspense, useEffect, useMemo, useState } from "react";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Link from "next/link";
@@ -42,7 +42,7 @@ const calculateAge = (dob?: string) => {
   return age;
 };
 
-export default function PlayersPage() {
+function PlayersPageContent() {
   const searchParams = useSearchParams();
   const [selectedPosition, setSelectedPosition] = useState("All");
   const [selectedTeam, setSelectedTeam] = useState("All");
@@ -292,5 +292,13 @@ export default function PlayersPage() {
         </motion.div>
       </div>
     </main>
+  );
+}
+
+export default function PlayersPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50" />}> 
+      <PlayersPageContent />
+    </Suspense>
   );
 }

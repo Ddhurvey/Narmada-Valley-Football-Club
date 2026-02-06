@@ -21,6 +21,8 @@ interface RecordRow {
   id: string;
   title: string;
   teamName: string;
+  gender: "boys" | "girls";
+  teamGroup: string;
   teamLogoUrl?: string;
   opponent: string;
   opponentLogoUrl?: string;
@@ -38,6 +40,8 @@ const emptyForm: RecordRow = {
   id: "",
   title: "",
   teamName: "NVFC",
+  gender: "boys",
+  teamGroup: "Senior",
   teamLogoUrl: "",
   opponent: "",
   opponentLogoUrl: "",
@@ -74,8 +78,10 @@ export default function RecordsPage() {
     const unsub = onSnapshot(recordsQuery, (snapshot) => {
       const rows = snapshot.docs.map((d) => ({
         id: d.id,
-        ...(d.data() as Omit<RecordRow, "id" | "teamName">),
+        ...(d.data() as Omit<RecordRow, "id" | "teamName" | "gender" | "teamGroup">),
         teamName: (d.data() as { teamName?: string }).teamName || "NVFC",
+        gender: (d.data() as { gender?: "boys" | "girls" }).gender || "boys",
+        teamGroup: (d.data() as { teamGroup?: string }).teamGroup || "Senior",
       }));
       setRecords(rows);
       setLoading(false);
@@ -110,6 +116,8 @@ export default function RecordsPage() {
     const headers = [
       "Title",
       "Team Name",
+      "Gender",
+      "Team Group",
       "Team Logo URL",
       "Opponent",
       "Opponent Logo URL",
@@ -125,6 +133,8 @@ export default function RecordsPage() {
     const rows = records.map((r) => [
       r.title,
       r.teamName,
+      r.gender,
+      r.teamGroup,
       r.teamLogoUrl ?? "",
       r.opponent,
       r.opponentLogoUrl ?? "",
@@ -162,6 +172,8 @@ export default function RecordsPage() {
     const rows = records.map((r) => ({
       Title: r.title,
       "Team Name": r.teamName,
+      Gender: r.gender,
+      "Team Group": r.teamGroup,
       "Team Logo URL": r.teamLogoUrl ?? "",
       Opponent: r.opponent,
       "Opponent Logo URL": r.opponentLogoUrl ?? "",
@@ -195,6 +207,8 @@ export default function RecordsPage() {
     const payload = {
       title: form.title,
       teamName: form.teamName,
+      gender: form.gender,
+      teamGroup: form.teamGroup,
       teamLogoUrl: form.teamLogoUrl || "",
       opponent: form.opponent,
       opponentLogoUrl: form.opponentLogoUrl || "",
@@ -304,6 +318,20 @@ export default function RecordsPage() {
                 placeholder="Team Name"
                 value={form.teamName}
                 onChange={(e) => setForm({ ...form, teamName: e.target.value })}
+              />
+              <select
+                className="border rounded-lg px-3 py-2"
+                value={form.gender}
+                onChange={(e) => setForm({ ...form, gender: e.target.value as RecordRow["gender"] })}
+              >
+                <option value="boys">Boys</option>
+                <option value="girls">Girls</option>
+              </select>
+              <input
+                className="border rounded-lg px-3 py-2"
+                placeholder="Team Group (e.g., U15, U18, U19, Senior)"
+                value={form.teamGroup}
+                onChange={(e) => setForm({ ...form, teamGroup: e.target.value })}
               />
               <input
                 className="border rounded-lg px-3 py-2"

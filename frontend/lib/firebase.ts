@@ -15,7 +15,7 @@ const firebaseConfig = {
   measurementId: "G-J0ZHXC08B1"
 };
 
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
+import { initializeFirestore, persistentLocalCache, persistentSingleTabManager } from "firebase/firestore";
 
 // Initialize Firebase
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
@@ -25,7 +25,7 @@ const auth = getAuth(app);
 // Long-polling helps when WebChannel is blocked by ad-blockers/firewalls
 const db = initializeFirestore(app, {
   localCache: persistentLocalCache({
-    tabManager: persistentMultipleTabManager()
+    tabManager: persistentSingleTabManager(undefined)
   }),
   experimentalForceLongPolling: true,
 });

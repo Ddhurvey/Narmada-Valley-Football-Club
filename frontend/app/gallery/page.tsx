@@ -8,7 +8,6 @@ import { collection, getDocs, orderBy, query, Timestamp } from "firebase/firesto
 import { db } from "@/lib/firebase";
 
 type MediaType = "all" | "images" | "videos";
-type FilterType = "all" | "monthly" | "yearly" | "events";
 type FilterType = "all" | "monthly" | "yearly" | "events" | "teams";
 interface GalleryItem {
   id: string;
@@ -76,8 +75,8 @@ const normalizeGalleryItem = (item: any, id: string): GalleryItem => {
     year,
     event: item.event,
     description: item.description,
-  };
     teamSlug: item.teamSlug,
+  };
 };
 
 export default function GalleryPage() {
@@ -89,7 +88,7 @@ export default function GalleryPage() {
   const [selectedYear, setSelectedYear] = useState<string>("all");
   const [selectedEvent, setSelectedEvent] = useState<string>("all");
   const [selectedItem, setSelectedItem] = useState<GalleryItem | null>(null);
-
+  const [teams, setTeams] = useState<TeamItem[]>([]);
   const [selectedTeam, setSelectedTeam] = useState<string>("all");
   useEffect(() => {
     const cached = localStorage.getItem(CACHE_KEY);
@@ -114,9 +113,6 @@ export default function GalleryPage() {
       localStorage.setItem(CACHE_KEY, JSON.stringify({ items: rows, cachedAt: Date.now() }));
       setCookie("nvfc_gallery_cached_at", String(Date.now()), 7);
     }
-
-    loadGallery();
-  }, []);
     async function loadTeams() {
       const teamsQuery = query(collection(db, "teams"), orderBy("order", "asc"));
       const snapshot = await getDocs(teamsQuery);
@@ -127,18 +123,17 @@ export default function GalleryPage() {
       setTeams(rows);
     }
 
-  // Get unique months, years, and events
+    loadGallery();
     loadTeams();
+  }, []);
+  // Get unique months, years, and events
   const months = useMemo(() => ["all", ...Array.from(new Set(items.map((item) => item.month)))], [items]);
   const years = useMemo(() => ["all", ...Array.from(new Set(items.map((item) => item.year)))], [items]);
   const events = useMemo(() => ["all", ...Array.from(new Set(items.map((item) => item.event).filter(Boolean)))], [items]);
+  const teamOptions = useMemo(() => ["all", ...teams.map((team) => team.slug)], [teams]);
 
   const filteredItems = items.filter((item) => {
     // Media type filter
-  const teamOptions = useMemo(
-    () => ["all", ...teams.map((team) => team.slug)],
-    [teams]
-  );
     if (mediaFilter === "images" && item.type !== "image") return false;
     if (mediaFilter === "videos" && item.type === "image") return false;
 
@@ -146,10 +141,10 @@ export default function GalleryPage() {
     if (timeFilter === "monthly" && selectedMonth !== "all" && item.month !== selectedMonth) return false;
     if (timeFilter === "yearly" && selectedYear !== "all" && item.year !== selectedYear) return false;
     if (timeFilter === "events" && selectedEvent !== "all" && item.event !== selectedEvent) return false;
+    if (timeFilter === "teams" && selectedTeam !== "all" && item.teamSlug !== selectedTeam) return false;
 
     return true;
   });
-    if (timeFilter === "teams" && selectedTeam !== "all" && item.teamSlug !== selectedTeam) return false;
 
   const MediaCard = ({ item }: { item: GalleryItem }) => (
     <motion.div
@@ -264,10 +259,10 @@ export default function GalleryPage() {
                 { label: "By Month", value: "monthly" },
                 { label: "By Year", value: "yearly" },
                 { label: "By Event", value: "events" },
+                { label: "By Team", value: "teams" },
               ].map((filter) => (
                 <Button
                   key={filter.value}
-                { label: "By Team", value: "teams" },
                   variant={timeFilter === filter.value ? "primary" : "outline"}
                   size="sm"
                   onClick={() => setTimeFilter(filter.value as FilterType)}
@@ -319,8 +314,6 @@ export default function GalleryPage() {
                 ))}
               </select>
             )}
-          </div>
-        </motion.div>
 
             {timeFilter === "teams" && (
               <select
@@ -335,6 +328,8 @@ export default function GalleryPage() {
                 ))}
               </select>
             )}
+          </div>
+        </motion.div>
         {/* Gallery Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredItems.map((item) => (
