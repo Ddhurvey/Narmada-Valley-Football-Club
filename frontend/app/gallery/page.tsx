@@ -1,13 +1,15 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import { motion } from "framer-motion";
+import { collection, getDocs, orderBy, query, Timestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 type MediaType = "all" | "images" | "videos";
 type FilterType = "all" | "monthly" | "yearly" | "events";
-
+type FilterType = "all" | "monthly" | "yearly" | "events" | "teams";
 interface GalleryItem {
   id: string;
   type: "image" | "youtube" | "live";
@@ -19,78 +21,68 @@ interface GalleryItem {
   year: string;
   event?: string;
   description?: string;
+  teamSlug?: string;
 }
 
-const mockGalleryItems: GalleryItem[] = [
-  {
-    id: "1",
-    type: "youtube",
-    url: "https://www.youtube.com/embed/dQw4w9WgXcQ",
-    thumbnail: "https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg",
-    title: "NVFC vs Rivals FC - Match Highlights",
-    date: "2026-02-03",
-    month: "February",
-    year: "2026",
-    event: "League Match",
-    description: "Amazing comeback victory with 3 goals in the second half"
-  },
-  {
-    id: "2",
-    type: "image",
-    url: "/logo.png",
-    title: "Team Celebration",
-    date: "2026-02-03",
-    month: "February",
-    year: "2026",
-    event: "League Match"
-  },
-  {
-    id: "3",
-    type: "youtube",
-    url: "https://www.youtube.com/embed/dQw4w9WgXcQ",
-    thumbnail: "https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg",
-    title: "Training Session - January 2026",
-    date: "2026-01-15",
-    month: "January",
-    year: "2026",
-    event: "Training"
-  },
-  {
-    id: "4",
-    type: "live",
-    url: "https://www.youtube.com/embed/live_stream_id",
-    thumbnail: "https://img.youtube.com/vi/live_stream_id/maxresdefault.jpg",
-    title: "LIVE: NVFC vs Champions FC",
-    date: "2026-02-10",
-    month: "February",
-    year: "2026",
-    event: "Live Match",
-    description: "Watch the match live!"
-  },
-  {
-    id: "5",
-    type: "image",
-    url: "/logo.png",
-    title: "New Year Celebration 2026",
-    date: "2026-01-01",
-    month: "January",
-    year: "2026",
-    event: "Club Event"
-  },
-  {
-    id: "6",
-    type: "youtube",
-    url: "https://www.youtube.com/embed/dQw4w9WgXcQ",
-    thumbnail: "https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg",
-    title: "Season Review 2025",
-    date: "2025-12-31",
-    month: "December",
-    year: "2025",
-    event: "Season Review"
-  },
-];
+const CACHE_KEY = "nvfc_gallery_cache";
+interface TeamItem {
+  id: string;
+  slug: string;
+  label: string;
+  order?: number;
+}
+const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+
+const setCookie = (name: string, value: string, days: number) => {
+  const date = new Date();
+  date.setTime(date.getTime() + days * 24 * 60 * 60 * 1000);
+  document.cookie = `${name}=${value}; expires=${date.toUTCString()}; path=/`;
+};
+
+const getYouTubeId = (url: string) => {
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname.includes("youtu.be")) {
+      return parsed.pathname.replace("/", "");
+    }
+    if (parsed.hostname.includes("youtube.com")) {
+      return parsed.searchParams.get("v");
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+};
+
+const getYouTubeThumbnail = (url: string) => {
+  const id = getYouTubeId(url);
+  return id ? `https://img.youtube.com/vi/${id}/maxresdefault.jpg` : "";
+};
+
+const normalizeGalleryItem = (item: any, id: string): GalleryItem => {
+  const createdAt: Date = item.createdAt instanceof Timestamp ? item.createdAt.toDate() : new Date();
+  const month = createdAt.toLocaleString("default", { month: "long" });
+  const year = String(createdAt.getFullYear());
+  const date = createdAt.toISOString().split("T")[0];
+  const derivedThumbnail = item.thumbnail || (item.type !== "image" ? getYouTubeThumbnail(item.url || "") : "");
+  return {
+    id,
+    type: item.type || "image",
+    url: item.url,
+    thumbnail: derivedThumbnail,
+    title: item.title || "Gallery Image",
+    date,
+    month,
+    year,
+    event: item.event,
+    description: item.description,
+  };
+    teamSlug: item.teamSlug,
+};
 
 export default function GalleryPage() {
+  const [items, setItems] = useState<GalleryItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [mediaFilter, setMediaFilter] = useState<MediaType>("all");
   const [timeFilter, setTimeFilter] = useState<FilterType>("all");
   const [selectedMonth, setSelectedMonth] = useState<string>("all");
@@ -98,13 +90,55 @@ export default function GalleryPage() {
   const [selectedEvent, setSelectedEvent] = useState<string>("all");
   const [selectedItem, setSelectedItem] = useState<GalleryItem | null>(null);
 
-  // Get unique months, years, and events
-  const months = ["all", ...Array.from(new Set(mockGalleryItems.map(item => item.month)))];
-  const years = ["all", ...Array.from(new Set(mockGalleryItems.map(item => item.year)))];
-  const events = ["all", ...Array.from(new Set(mockGalleryItems.map(item => item.event).filter(Boolean)))];
+  const [selectedTeam, setSelectedTeam] = useState<string>("all");
+  useEffect(() => {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached) as { items: GalleryItem[]; cachedAt: number };
+        if (Date.now() - parsed.cachedAt < CACHE_TTL_MS) {
+          setItems(parsed.items);
+          setLoading(false);
+        }
+      } catch {
+        // ignore cache errors
+      }
+    }
 
-  const filteredItems = mockGalleryItems.filter((item) => {
+    async function loadGallery() {
+      const galleryQuery = query(collection(db, "gallery"), orderBy("createdAt", "desc"));
+      const snapshot = await getDocs(galleryQuery);
+      const rows = snapshot.docs.map((d) => normalizeGalleryItem(d.data(), d.id));
+      setItems(rows);
+      setLoading(false);
+      localStorage.setItem(CACHE_KEY, JSON.stringify({ items: rows, cachedAt: Date.now() }));
+      setCookie("nvfc_gallery_cached_at", String(Date.now()), 7);
+    }
+
+    loadGallery();
+  }, []);
+    async function loadTeams() {
+      const teamsQuery = query(collection(db, "teams"), orderBy("order", "asc"));
+      const snapshot = await getDocs(teamsQuery);
+      const rows = snapshot.docs.map((d) => ({
+        id: d.id,
+        ...(d.data() as Omit<TeamItem, "id">),
+      }));
+      setTeams(rows);
+    }
+
+  // Get unique months, years, and events
+    loadTeams();
+  const months = useMemo(() => ["all", ...Array.from(new Set(items.map((item) => item.month)))], [items]);
+  const years = useMemo(() => ["all", ...Array.from(new Set(items.map((item) => item.year)))], [items]);
+  const events = useMemo(() => ["all", ...Array.from(new Set(items.map((item) => item.event).filter(Boolean)))], [items]);
+
+  const filteredItems = items.filter((item) => {
     // Media type filter
+  const teamOptions = useMemo(
+    () => ["all", ...teams.map((team) => team.slug)],
+    [teams]
+  );
     if (mediaFilter === "images" && item.type !== "image") return false;
     if (mediaFilter === "videos" && item.type === "image") return false;
 
@@ -115,6 +149,7 @@ export default function GalleryPage() {
 
     return true;
   });
+    if (timeFilter === "teams" && selectedTeam !== "all" && item.teamSlug !== selectedTeam) return false;
 
   const MediaCard = ({ item }: { item: GalleryItem }) => (
     <motion.div
@@ -193,6 +228,8 @@ export default function GalleryPage() {
       </div>
 
       <div className="container-custom py-12">
+        {loading && <div className="text-center text-gray-500 mb-6">Loading gallery...</div>}
+
         {/* Media Type Filter */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -230,6 +267,7 @@ export default function GalleryPage() {
               ].map((filter) => (
                 <Button
                   key={filter.value}
+                { label: "By Team", value: "teams" },
                   variant={timeFilter === filter.value ? "primary" : "outline"}
                   size="sm"
                   onClick={() => setTimeFilter(filter.value as FilterType)}
@@ -284,6 +322,19 @@ export default function GalleryPage() {
           </div>
         </motion.div>
 
+            {timeFilter === "teams" && (
+              <select
+                value={selectedTeam}
+                onChange={(e) => setSelectedTeam(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-nvfc-primary"
+              >
+                {teamOptions.map((team) => (
+                  <option key={team} value={team}>
+                    {team === "all" ? "All Teams" : teams.find((t) => t.slug === team)?.label || team}
+                  </option>
+                ))}
+              </select>
+            )}
         {/* Gallery Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredItems.map((item) => (

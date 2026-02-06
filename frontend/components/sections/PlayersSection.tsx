@@ -11,7 +11,7 @@ interface PlayerRow {
   name: string;
   position: string;
   number: string;
-  team: "boys" | "girls" | "u18" | "u15" | "u14";
+  team: string;
   photoURL?: string;
   status?: "active" | "injured" | "loan" | "left";
 }
@@ -26,8 +26,24 @@ export default function PlayersSection({ config, theme }: { config: any; theme: 
       const snapshot = await getDocs(playersQuery);
       const rows = snapshot.docs.map((d) => ({
         id: d.id,
-        team: "boys",
         ...(d.data() as Omit<PlayerRow, "id" | "team">),
+        team: ((): PlayerRow["team"] => {
+          const value = (d.data() as { team?: string }).team;
+          const allowed = [
+            "boys",
+            "girls",
+            "boys-u15",
+            "boys-u18",
+            "boys-u19",
+            "girls-u15",
+            "girls-u18",
+            "girls-u19",
+          ];
+          if (allowed.includes(value ?? "")) {
+            return value as PlayerRow["team"];
+          }
+          return "boys";
+        })(),
       }));
       setPlayers(rows);
       setLoading(false);

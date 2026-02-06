@@ -9,7 +9,10 @@ import { db } from "@/lib/firebase";
 interface RecordRow {
   id: string;
   title: string;
+  teamName: string;
+  teamLogoUrl?: string;
   opponent: string;
+  opponentLogoUrl?: string;
   date: string;
   venue: string;
   competition: string;
@@ -32,7 +35,8 @@ export default function RecordsPage() {
       const snapshot = await getDocs(recordsQuery);
       const rows = snapshot.docs.map((d) => ({
         id: d.id,
-        ...(d.data() as Omit<RecordRow, "id">),
+        ...(d.data() as Omit<RecordRow, "id" | "teamName">),
+        teamName: (d.data() as { teamName?: string }).teamName || "NVFC",
       }));
       setRecords(rows);
       setLoading(false);
@@ -118,7 +122,23 @@ export default function RecordsPage() {
               <Card className="p-6">
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <h3 className="text-lg font-semibold text-nvfc-dark">{record.title}</h3>
+                    <div className="flex items-center gap-3">
+                      {record.teamLogoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={record.teamLogoUrl} alt={record.teamName} className="w-8 h-8 object-contain" />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-gray-200" />
+                      )}
+                      <h3 className="text-lg font-semibold text-nvfc-dark">
+                        {record.teamName} vs {record.opponent}
+                      </h3>
+                      {record.opponentLogoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={record.opponentLogoUrl} alt={record.opponent} className="w-8 h-8 object-contain" />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-gray-200" />
+                      )}
+                    </div>
                     <p className="text-sm text-gray-500">
                       {record.date} • {record.venue || "TBD"}
                     </p>

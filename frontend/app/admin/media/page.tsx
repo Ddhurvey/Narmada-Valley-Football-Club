@@ -3,9 +3,10 @@
 import React, { useState, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { doc, setDoc, getDoc } from "firebase/firestore";
+import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
+import { addDoc, collection, doc, setDoc, getDoc, Timestamp } from "firebase/firestore";
 import { storage, db } from "@/lib/firebase";
+import { compressImage } from "@/lib/storage";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import { motion } from "framer-motion";
@@ -23,6 +24,7 @@ export default function MediaPage() {
   const { user, isAdmin, loading: authLoading } = useAuth();
   const router = useRouter();
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [logo, setLogo] = useState<string>("/logo.png");
   const [heroImage, setHeroImage] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -56,11 +58,41 @@ export default function MediaPage() {
     if (!file || !user) return;
 
     setUploading(true);
+    setUploadProgress(0);
     try {
-      // Upload to Firebase Storage
-      const storageRef = ref(storage, `media/${uploadType}/${Date.now()}_${file.name}`);
-      await uploadBytes(storageRef, file);
-      const downloadURL = await getDownloadURL(storageRef);
+      const maxSize = 8 * 1024 * 1024;
+      if (file.size > maxSize) {
+        alert("Image too large. Please upload under 8MB.");
+        setUploading(false);
+        return;
+      }
+
+      let optimizedFile = file;
+      try {
+        const maxWidth = uploadType === "hero" ? 1600 : uploadType === "logo" ? 600 : 1200;
+        const maxHeight = uploadType === "hero" ? 900 : uploadType === "logo" ? 600 : 1200;
+        optimizedFile = await compressImage(file, maxWidth, maxHeight, 0.8);
+      } catch (error) {
+        console.warn("Image compression failed, uploading original.", error);
+      }
+
+      const storageRef = ref(storage, `media/${uploadType}/${Date.now()}_${optimizedFile.name}`);
+      const uploadTask = uploadBytesResumable(storageRef, optimizedFile);
+
+      const downloadURL = await new Promise<string>((resolve, reject) => {
+        uploadTask.on(
+          "state_changed",
+          (snapshot) => {
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            setUploadProgress(Math.round(progress));
+          },
+          (error) => reject(error),
+          async () => {
+            const url = await getDownloadURL(uploadTask.snapshot.ref);
+            resolve(url);
+          }
+        );
+      });
 
       // Save to Firestore
       const mediaDocRef = doc(db, "settings", "media");
@@ -70,6 +102,16 @@ export default function MediaPage() {
       updateData[`${uploadType}UpdatedBy`] = user.uid;
 
       await setDoc(mediaDocRef, updateData, { merge: true });
+
+      if (uploadType === "gallery") {
+        await addDoc(collection(db, "gallery"), {
+          url: downloadURL,
+          title: file.name.replace(/\.[^/.]+$/, ""),
+          type: "image",
+          createdAt: Timestamp.now(),
+          uploadedBy: user.uid,
+        });
+      }
 
       // Update local state
       if (uploadType === "logo") setLogo(downloadURL);
@@ -147,6 +189,9 @@ export default function MediaPage() {
             >
               {uploading ? "Uploading..." : "Select Image"}
             </Button>
+            {uploading && (
+              <div className="mt-4 text-sm text-gray-600">Uploading: {uploadProgress}%</div>
+            )}
           </div>
         </Card>
 

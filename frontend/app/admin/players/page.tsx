@@ -22,7 +22,7 @@ interface PlayerRow {
   name: string;
   position: string;
   number: string;
-  team: "boys" | "girls" | "u18" | "u15" | "u14";
+  team: string;
   nationality: string;
   dob: string;
   heightCm: string;
@@ -33,6 +33,13 @@ interface PlayerRow {
   joined?: string;
   contract?: string;
   status: "active" | "injured" | "loan" | "left";
+}
+
+interface TeamItem {
+  id: string;
+  slug: string;
+  label: string;
+  order?: number;
 }
 
 const emptyForm: PlayerRow = {
@@ -55,6 +62,7 @@ const emptyForm: PlayerRow = {
 
 export default function PlayersPage() {
   const [players, setPlayers] = useState<PlayerRow[]>([]);
+  const [teams, setTeams] = useState<TeamItem[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<PlayerRow>(emptyForm);
@@ -142,13 +150,25 @@ export default function PlayersPage() {
     const unsub = onSnapshot(playersQuery, (snapshot) => {
       const rows = snapshot.docs.map((d) => ({
         id: d.id,
-        team: "boys",
         ...(d.data() as Omit<PlayerRow, "id" | "team">),
+        team: (d.data() as { team?: string }).team || "boys",
       }));
       setPlayers(rows);
       setLoading(false);
     });
 
+    return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    const teamsQuery = query(collection(db, "teams"), orderBy("order", "asc"));
+    const unsub = onSnapshot(teamsQuery, (snapshot) => {
+      const rows = snapshot.docs.map((d) => ({
+        id: d.id,
+        ...(d.data() as Omit<TeamItem, "id">),
+      }));
+      setTeams(rows);
+    });
     return () => unsub();
   }, []);
 
@@ -247,13 +267,25 @@ export default function PlayersPage() {
               <select
                 className="border rounded-lg px-3 py-2"
                 value={form.team}
-                onChange={(e) => setForm({ ...form, team: e.target.value as PlayerRow["team"] })}
+                onChange={(e) => setForm({ ...form, team: e.target.value })}
               >
-                <option value="boys">Boys Team</option>
-                <option value="girls">Girls Team</option>
-                <option value="u18">U18</option>
-                <option value="u15">U15</option>
-                <option value="u14">U14</option>
+                {(teams.length
+                  ? teams.map((team) => ({ label: team.label, value: team.slug }))
+                  : [
+                      { label: "Boys Team", value: "boys" },
+                      { label: "Boys U15", value: "boys-u15" },
+                      { label: "Boys U18", value: "boys-u18" },
+                      { label: "Boys U19", value: "boys-u19" },
+                      { label: "Girls Team", value: "girls" },
+                      { label: "Girls U15", value: "girls-u15" },
+                      { label: "Girls U18", value: "girls-u18" },
+                      { label: "Girls U19", value: "girls-u19" },
+                    ]
+                ).map((team) => (
+                  <option key={team.value} value={team.value}>
+                    {team.label}
+                  </option>
+                ))}
               </select>
               <input
                 className="border rounded-lg px-3 py-2"
@@ -400,11 +432,7 @@ export default function PlayersPage() {
                     <td className="px-6 py-4 text-gray-700">{p.position}</td>
                     <td className="px-6 py-4 text-gray-700">{p.number}</td>
                     <td className="px-6 py-4 text-gray-700">
-                      {p.team === "boys" && "Boys"}
-                      {p.team === "girls" && "Girls"}
-                      {p.team === "u18" && "U18"}
-                      {p.team === "u15" && "U15"}
-                      {p.team === "u14" && "U14"}
+                      {teams.find((team) => team.slug === p.team)?.label || p.team}
                     </td>
                     <td className="px-6 py-4 text-gray-700">{p.dob || "-"}</td>
                     <td className="px-6 py-4 text-gray-700">{p.heightCm ? `${p.heightCm} cm` : "-"}</td>

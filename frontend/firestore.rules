@@ -181,12 +181,30 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin() && isActiveUser();
     }
 
+    // Teams (navbar squad list)
+    match /teams/{teamId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin() && isActiveUser();
+    }
+
+    // Gallery
+    match /gallery/{galleryId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin() && isActiveUser();
+    }
+
     // Records
     match /records/{recordId} {
       // Anyone can read records
       allow read: if true;
 
       // Only admins can manage records
+      allow create, update, delete: if isAdmin() && isActiveUser();
+    }
+
+    // Settings (navigation, media, etc.)
+    match /settings/{docId} {
+      allow read: if true;
       allow create, update, delete: if isAdmin() && isActiveUser();
     }
 

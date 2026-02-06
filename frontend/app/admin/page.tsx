@@ -49,8 +49,10 @@ export default function AdminDashboard() {
   const adminSections = [
     { title: "Role Management", icon: "👥", href: "/admin/roles", color: "purple", adminOnly: true },
     { title: "Announcement Bar", icon: "📢", href: "/admin/announcement", color: "red" },
+    { title: "Navigation", icon: "🧭", href: "/admin/navigation", color: "indigo" },
     { title: "News & Articles", icon: "📰", href: "/admin/news", color: "blue" },
     { title: "Players", icon: "⚽", href: "/admin/players", color: "green" },
+    { title: "Teams", icon: "🧩", href: "/admin/teams", color: "indigo" },
     { title: "Fixtures", icon: "📅", href: "/admin/fixtures", color: "orange" },
     { title: "Records", icon: "📊", href: "/admin/records", color: "cyan" },
     { title: "Tickets", icon: "🎟️", href: "/admin/tickets", color: "blue" },
@@ -58,6 +60,7 @@ export default function AdminDashboard() {
     { title: "Memberships", icon: "🪪", href: "/admin/memberships", color: "purple" },
     { title: "Products", icon: "🛍️", href: "/admin/products", color: "pink" },
     { title: "Media Manager", icon: "📸", href: "/admin/media", color: "teal" },
+    { title: "Gallery Manager", icon: "🖼️", href: "/admin/gallery", color: "blue" },
     { title: "Layouts", icon: "🎨", href: "/admin/layouts", color: "indigo" },
     { title: "Events", icon: "🎉", href: "/admin/events", color: "yellow" },
     { title: "Audit Logs", icon: "📋", href: "/admin/audit", color: "gray", adminOnly: true },

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import Button from "./ui/Button";
-import { doc, onSnapshot } from "firebase/firestore";
+import { collection, doc, onSnapshot, orderBy, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 interface LiveScore {
@@ -28,12 +28,51 @@ interface AnnouncementConfig {
   endAt?: string;
 }
 
+interface NavLinkItem {
+  href: string;
+  label: string;
+  children?: NavLinkItem[];
+}
+
+interface TeamItem {
+  id: string;
+  slug: string;
+  label: string;
+  order?: number;
+}
+
+const defaultNavLinks: NavLinkItem[] = [
+  { href: "/", label: "Home" },
+  { href: "/news", label: "News" },
+  { href: "/fixtures", label: "Fixtures" },
+  { href: "/records", label: "Records" },
+  {
+    href: "/players",
+    label: "Squad",
+    children: [
+      { href: "/players?team=boys", label: "Boys Team" },
+      { href: "/players?team=boys-u15", label: "Boys U15" },
+      { href: "/players?team=boys-u18", label: "Boys U18" },
+      { href: "/players?team=boys-u19", label: "Boys U19" },
+      { href: "/players?team=girls", label: "Girls Team" },
+      { href: "/players?team=girls-u15", label: "Girls U15" },
+      { href: "/players?team=girls-u18", label: "Girls U18" },
+      { href: "/players?team=girls-u19", label: "Girls U19" },
+    ],
+  },
+  { href: "/tickets", label: "Tickets" },
+  { href: "/store", label: "Store" },
+  { href: "/about", label: "Club" },
+];
+
 const Header: React.FC = () => {
   const { user, isAdmin } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [liveScore, setLiveScore] = useState<LiveScore | null>(null);
   const [announcement, setAnnouncement] = useState<AnnouncementConfig | null>(null);
+  const [navLinks, setNavLinks] = useState<NavLinkItem[]>(defaultNavLinks);
+  const [teams, setTeams] = useState<TeamItem[]>([]);
 
   // Mock live score - will be replaced with Socket.IO
   useEffect(() => {
@@ -66,6 +105,49 @@ const Header: React.FC = () => {
     return () => unsub();
   }, []);
 
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, "settings", "navigation"), (snap) => {
+      if (snap.exists()) {
+        const data = snap.data() as { links?: NavLinkItem[] };
+        if (Array.isArray(data.links) && data.links.length > 0) {
+          setNavLinks(data.links);
+          return;
+        }
+      }
+      setNavLinks(defaultNavLinks);
+    });
+    return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    const teamsQuery = query(collection(db, "teams"), orderBy("order", "asc"));
+    const unsub = onSnapshot(teamsQuery, (snapshot) => {
+      const rows = snapshot.docs.map((d) => ({
+        id: d.id,
+        ...(d.data() as Omit<TeamItem, "id">),
+      }));
+      setTeams(rows);
+    });
+    return () => unsub();
+  }, []);
+
+  const teamLinks: NavLinkItem[] = (teams.length
+    ? teams.map((team) => ({
+        href: `/players?team=${team.slug}`,
+        label: team.label,
+      }))
+    : (defaultNavLinks.find((link) => link.href === "/players")?.children || [])
+  );
+
+  const resolvedNavLinks = navLinks.map((link) =>
+    link.href === "/players"
+      ? {
+          ...link,
+          children: teamLinks,
+        }
+      : link
+  );
+
   const shouldShowAnnouncement = (() => {
     if (!announcement?.enabled || !announcement?.message) return false;
     const now = new Date();
@@ -79,27 +161,6 @@ const Header: React.FC = () => {
     }
     return true;
   })();
-
-  const navLinks = [
-    { href: "/", label: "Home" },
-    { href: "/news", label: "News" },
-    { href: "/fixtures", label: "Fixtures" },
-    { href: "/records", label: "Records" },
-    {
-      href: "/players",
-      label: "Squad",
-      children: [
-        { href: "/players?team=boys", label: "Boys Team" },
-        { href: "/players?team=girls", label: "Girls Team" },
-        { href: "/players?team=u18", label: "U18" },
-        { href: "/players?team=u15", label: "U15" },
-        { href: "/players?team=u14", label: "U14" },
-      ],
-    },
-    { href: "/tickets", label: "Tickets" },
-    { href: "/store", label: "Store" },
-    { href: "/about", label: "Club" },
-  ];
 
   return (
     <>
@@ -172,7 +233,7 @@ const Header: React.FC = () => {
 
             {/* Desktop Navigation */}
             <div className="hidden lg:flex items-center gap-8">
-              {navLinks.map((link) =>
+              {resolvedNavLinks.map((link) =>
                 link.children ? (
                   <div key={link.href} className="relative group">
                     <Link
@@ -277,7 +338,7 @@ const Header: React.FC = () => {
                 className="lg:hidden mt-4 pt-4 border-t border-gray-200"
               >
                 <div className="flex flex-col gap-4">
-                  {navLinks.map((link) =>
+                  {resolvedNavLinks.map((link) =>
                     link.children ? (
                       <div key={link.href} className="flex flex-col gap-2">
                         <Link

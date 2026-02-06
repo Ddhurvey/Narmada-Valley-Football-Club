@@ -14,12 +14,19 @@ interface PlayerRow {
   name: string;
   position: string;
   number: string;
-  team: "boys" | "girls" | "u18" | "u15" | "u14";
+  team: string;
   nationality: string;
   dob: string;
   heightCm: string;
   photoURL?: string;
   status?: "active" | "injured" | "loan" | "left";
+}
+
+interface TeamItem {
+  id: string;
+  slug: string;
+  label: string;
+  order?: number;
 }
 
 const calculateAge = (dob?: string) => {
@@ -40,16 +47,24 @@ export default function PlayersPage() {
   const [selectedPosition, setSelectedPosition] = useState("All");
   const [selectedTeam, setSelectedTeam] = useState("All");
   const [players, setPlayers] = useState<PlayerRow[]>([]);
+  const [teams, setTeams] = useState<TeamItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   const positions = ["All", "Goalkeeper", "Defender", "Midfielder", "Forward"];
-  const teams = [
+  const teamOptions = [
     { label: "All", value: "All" },
-    { label: "Boys Team", value: "boys" },
-    { label: "Girls Team", value: "girls" },
-    { label: "U18", value: "u18" },
-    { label: "U15", value: "u15" },
-    { label: "U14", value: "u14" },
+    ...(teams.length
+      ? teams.map((team) => ({ label: team.label, value: team.slug }))
+      : [
+          { label: "Boys Team", value: "boys" },
+          { label: "Boys U15", value: "boys-u15" },
+          { label: "Boys U18", value: "boys-u18" },
+          { label: "Boys U19", value: "boys-u19" },
+          { label: "Girls Team", value: "girls" },
+          { label: "Girls U15", value: "girls-u15" },
+          { label: "Girls U18", value: "girls-u18" },
+          { label: "Girls U19", value: "girls-u19" },
+        ]),
   ];
 
   useEffect(() => {
@@ -59,13 +74,7 @@ export default function PlayersPage() {
       const rows = snapshot.docs.map((d) => ({
         id: d.id,
         ...(d.data() as Omit<PlayerRow, "id" | "team">),
-        team: ((): PlayerRow["team"] => {
-          const value = (d.data() as { team?: string }).team;
-          if (["boys", "girls", "u18", "u15", "u14"].includes(value ?? "")) {
-            return value as PlayerRow["team"];
-          }
-          return "boys";
-        })(),
+        team: (d.data() as { team?: string }).team || "boys",
       }));
       setPlayers(rows);
       setLoading(false);
@@ -74,11 +83,25 @@ export default function PlayersPage() {
   }, []);
 
   useEffect(() => {
+    async function loadTeams() {
+      const teamsQuery = query(collection(db, "teams"), orderBy("order", "asc"));
+      const snapshot = await getDocs(teamsQuery);
+      const rows = snapshot.docs.map((d) => ({
+        id: d.id,
+        ...(d.data() as Omit<TeamItem, "id">),
+      }));
+      setTeams(rows);
+    }
+    loadTeams();
+  }, []);
+
+  useEffect(() => {
     const teamParam = searchParams.get("team");
-    if (teamParam && ["boys", "girls", "u18", "u15", "u14", "All"].includes(teamParam)) {
+    const allowed = new Set(["All", ...teamOptions.map((team) => team.value)]);
+    if (teamParam && allowed.has(teamParam)) {
       setSelectedTeam(teamParam);
     }
-  }, [searchParams]);
+  }, [searchParams, teamOptions]);
 
   const filteredPlayers = useMemo(() => {
     let list = [...players];
@@ -133,7 +156,7 @@ export default function PlayersPage() {
           className="mb-6"
         >
           <div className="flex gap-3 overflow-x-auto pb-2">
-            {teams.map((team) => (
+            {teamOptions.map((team) => (
               <button
                 key={team.value}
                 onClick={() => setSelectedTeam(team.value)}

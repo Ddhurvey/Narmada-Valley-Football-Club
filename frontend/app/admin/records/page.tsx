@@ -20,7 +20,10 @@ import { db } from "@/lib/firebase";
 interface RecordRow {
   id: string;
   title: string;
+  teamName: string;
+  teamLogoUrl?: string;
   opponent: string;
+  opponentLogoUrl?: string;
   date: string;
   venue: string;
   competition: string;
@@ -34,7 +37,10 @@ interface RecordRow {
 const emptyForm: RecordRow = {
   id: "",
   title: "",
+  teamName: "NVFC",
+  teamLogoUrl: "",
   opponent: "",
+  opponentLogoUrl: "",
   date: "",
   venue: "",
   competition: "League",
@@ -51,6 +57,8 @@ export default function RecordsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<RecordRow>(emptyForm);
   const [loading, setLoading] = useState(true);
+  const [selectedCompetition, setSelectedCompetition] = useState("All");
+  const [selectedSeason, setSelectedSeason] = useState("All");
   const lockDays = 15;
 
   const isRecordLocked = (record: RecordRow) => {
@@ -66,7 +74,8 @@ export default function RecordsPage() {
     const unsub = onSnapshot(recordsQuery, (snapshot) => {
       const rows = snapshot.docs.map((d) => ({
         id: d.id,
-        ...(d.data() as Omit<RecordRow, "id">),
+        ...(d.data() as Omit<RecordRow, "id" | "teamName">),
+        teamName: (d.data() as { teamName?: string }).teamName || "NVFC",
       }));
       setRecords(rows);
       setLoading(false);
@@ -76,10 +85,34 @@ export default function RecordsPage() {
 
   const isEditing = useMemo(() => !!editingId, [editingId]);
 
+  const competitions = useMemo(() => {
+    const unique = new Set(records.map((r) => r.competition).filter(Boolean));
+    return ["All", ...Array.from(unique)];
+  }, [records]);
+
+  const seasons = useMemo(() => {
+    const unique = new Set(records.map((r) => r.season).filter(Boolean));
+    return ["All", ...Array.from(unique)];
+  }, [records]);
+
+  const filteredRecords = useMemo(() => {
+    let list = records;
+    if (selectedCompetition !== "All") {
+      list = list.filter((r) => r.competition === selectedCompetition);
+    }
+    if (selectedSeason !== "All") {
+      list = list.filter((r) => r.season === selectedSeason);
+    }
+    return list;
+  }, [records, selectedCompetition, selectedSeason]);
+
   const exportCSV = () => {
     const headers = [
       "Title",
+      "Team Name",
+      "Team Logo URL",
       "Opponent",
+      "Opponent Logo URL",
       "Date",
       "Venue",
       "Competition",
@@ -91,7 +124,10 @@ export default function RecordsPage() {
     ];
     const rows = records.map((r) => [
       r.title,
+      r.teamName,
+      r.teamLogoUrl ?? "",
       r.opponent,
+      r.opponentLogoUrl ?? "",
       r.date,
       r.venue,
       r.competition,
@@ -125,7 +161,10 @@ export default function RecordsPage() {
     const xlsx = await import("xlsx");
     const rows = records.map((r) => ({
       Title: r.title,
+      "Team Name": r.teamName,
+      "Team Logo URL": r.teamLogoUrl ?? "",
       Opponent: r.opponent,
+      "Opponent Logo URL": r.opponentLogoUrl ?? "",
       Date: r.date,
       Venue: r.venue,
       Competition: r.competition,
@@ -155,7 +194,10 @@ export default function RecordsPage() {
 
     const payload = {
       title: form.title,
+      teamName: form.teamName,
+      teamLogoUrl: form.teamLogoUrl || "",
       opponent: form.opponent,
+      opponentLogoUrl: form.opponentLogoUrl || "",
       date: form.date,
       venue: form.venue,
       competition: form.competition,
@@ -223,6 +265,31 @@ export default function RecordsPage() {
           Records older than {lockDays} days are locked from edits.
         </p>
 
+        <div className="flex flex-wrap gap-3 mb-4">
+          <select
+            className="border rounded-lg px-3 py-2"
+            value={selectedCompetition}
+            onChange={(e) => setSelectedCompetition(e.target.value)}
+          >
+            {competitions.map((competition) => (
+              <option key={competition} value={competition}>
+                {competition}
+              </option>
+            ))}
+          </select>
+          <select
+            className="border rounded-lg px-3 py-2"
+            value={selectedSeason}
+            onChange={(e) => setSelectedSeason(e.target.value)}
+          >
+            {seasons.map((season) => (
+              <option key={season} value={season}>
+                {season}
+              </option>
+            ))}
+          </select>
+        </div>
+
         {showForm && (
           <Card className="p-6 mb-6">
             <form className="grid grid-cols-1 md:grid-cols-3 gap-4" onSubmit={handleSubmit}>
@@ -234,9 +301,27 @@ export default function RecordsPage() {
               />
               <input
                 className="border rounded-lg px-3 py-2"
+                placeholder="Team Name"
+                value={form.teamName}
+                onChange={(e) => setForm({ ...form, teamName: e.target.value })}
+              />
+              <input
+                className="border rounded-lg px-3 py-2"
+                placeholder="Team Logo URL"
+                value={form.teamLogoUrl}
+                onChange={(e) => setForm({ ...form, teamLogoUrl: e.target.value })}
+              />
+              <input
+                className="border rounded-lg px-3 py-2"
                 placeholder="Opponent"
                 value={form.opponent}
                 onChange={(e) => setForm({ ...form, opponent: e.target.value })}
+              />
+              <input
+                className="border rounded-lg px-3 py-2"
+                placeholder="Opponent Logo URL"
+                value={form.opponentLogoUrl}
+                onChange={(e) => setForm({ ...form, opponentLogoUrl: e.target.value })}
               />
               <input
                 className="border rounded-lg px-3 py-2"
@@ -332,16 +417,32 @@ export default function RecordsPage() {
                     </td>
                   </tr>
                 )}
-                {!loading && records.length === 0 && (
+                {!loading && filteredRecords.length === 0 && (
                   <tr>
                     <td className="px-6 py-6 text-gray-500" colSpan={5}>
                       No records found.
                     </td>
                   </tr>
                 )}
-                {records.map((r) => (
+                {filteredRecords.map((r) => (
                   <tr key={r.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 font-medium text-gray-900">{r.title}</td>
+                    <td className="px-6 py-4 font-medium text-gray-900">
+                      <div className="flex items-center gap-3">
+                        {r.teamLogoUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={r.teamLogoUrl} alt={r.teamName} className="w-8 h-8 object-contain" />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-gray-200" />
+                        )}
+                        <span>{r.teamName} vs {r.opponent}</span>
+                        {r.opponentLogoUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={r.opponentLogoUrl} alt={r.opponent} className="w-8 h-8 object-contain" />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-gray-200" />
+                        )}
+                      </div>
+                    </td>
                     <td className="px-6 py-4 text-gray-700">{r.date}</td>
                     <td className="px-6 py-4 text-gray-700">
                       {r.competition} • {r.season}
