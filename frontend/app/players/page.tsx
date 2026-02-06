@@ -1,84 +1,111 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { collection, getDocs, orderBy, query } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { useSearchParams } from "next/navigation";
 
-// Mock players data
-const mockPlayers = [
-  {
-    id: "1",
-    name: "John Smith",
-    position: "Goalkeeper",
-    number: 1,
-    nationality: "India",
-    age: 28,
-    height: "6'2\"",
-    image: "/players/1.jpg",
-  },
-  {
-    id: "2",
-    name: "Raj Kumar",
-    position: "Defender",
-    number: 4,
-    nationality: "India",
-    age: 26,
-    height: "6'0\"",
-    image: "/players/2.jpg",
-  },
-  {
-    id: "3",
-    name: "Alex Rodriguez",
-    position: "Midfielder",
-    number: 8,
-    nationality: "Spain",
-    age: 24,
-    height: "5'10\"",
-    image: "/players/3.jpg",
-  },
-  {
-    id: "4",
-    name: "Michael Johnson",
-    position: "Forward",
-    number: 9,
-    nationality: "Brazil",
-    age: 25,
-    height: "5'11\"",
-    image: "/players/4.jpg",
-  },
-  {
-    id: "5",
-    name: "David Singh",
-    position: "Defender",
-    number: 5,
-    nationality: "India",
-    age: 27,
-    height: "6'1\"",
-    image: "/players/5.jpg",
-  },
-  {
-    id: "6",
-    name: "Carlos Martinez",
-    position: "Midfielder",
-    number: 10,
-    nationality: "Argentina",
-    age: 29,
-    height: "5'9\"",
-    image: "/players/6.jpg",
-  },
-];
+interface PlayerRow {
+  id: string;
+  name: string;
+  position: string;
+  number: string;
+  team: "boys" | "girls" | "u18" | "u15" | "u14";
+  nationality: string;
+  dob: string;
+  heightCm: string;
+  photoURL?: string;
+  status?: "active" | "injured" | "loan" | "left";
+}
+
+const calculateAge = (dob?: string) => {
+  if (!dob) return "-";
+  const birthDate = new Date(dob);
+  if (Number.isNaN(birthDate.getTime())) return "-";
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age;
+};
 
 export default function PlayersPage() {
+  const searchParams = useSearchParams();
   const [selectedPosition, setSelectedPosition] = useState("All");
+  const [selectedTeam, setSelectedTeam] = useState("All");
+  const [players, setPlayers] = useState<PlayerRow[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const positions = ["All", "Goalkeeper", "Defender", "Midfielder", "Forward"];
+  const teams = [
+    { label: "All", value: "All" },
+    { label: "Boys Team", value: "boys" },
+    { label: "Girls Team", value: "girls" },
+    { label: "U18", value: "u18" },
+    { label: "U15", value: "u15" },
+    { label: "U14", value: "u14" },
+  ];
 
-  const filteredPlayers =
-    selectedPosition === "All"
-      ? mockPlayers
-      : mockPlayers.filter((player) => player.position === selectedPosition);
+  useEffect(() => {
+    async function loadPlayers() {
+      const playersQuery = query(collection(db, "players"), orderBy("createdAt", "desc"));
+      const snapshot = await getDocs(playersQuery);
+      const rows = snapshot.docs.map((d) => ({
+        id: d.id,
+        ...(d.data() as Omit<PlayerRow, "id" | "team">),
+        team: ((): PlayerRow["team"] => {
+          const value = (d.data() as { team?: string }).team;
+          if (["boys", "girls", "u18", "u15", "u14"].includes(value ?? "")) {
+            return value as PlayerRow["team"];
+          }
+          return "boys";
+        })(),
+      }));
+      setPlayers(rows);
+      setLoading(false);
+    }
+    loadPlayers();
+  }, []);
+
+  useEffect(() => {
+    const teamParam = searchParams.get("team");
+    if (teamParam && ["boys", "girls", "u18", "u15", "u14", "All"].includes(teamParam)) {
+      setSelectedTeam(teamParam);
+    }
+  }, [searchParams]);
+
+  const filteredPlayers = useMemo(() => {
+    let list = [...players];
+    if (selectedTeam !== "All") {
+      list = list.filter((player) => player.team === selectedTeam);
+    }
+    if (selectedPosition !== "All") {
+      list = list.filter((player) => player.position === selectedPosition);
+    }
+    return list.sort((a, b) => {
+      const statusRank = (status?: PlayerRow["status"]) => {
+        switch (status) {
+          case "active":
+            return 0;
+          case "injured":
+            return 1;
+          case "loan":
+            return 2;
+          case "left":
+            return 3;
+          default:
+            return 1;
+        }
+      };
+      return statusRank(a.status) - statusRank(b.status);
+    });
+  }, [players, selectedPosition, selectedTeam]);
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -98,6 +125,30 @@ export default function PlayersPage() {
       </div>
 
       <div className="container-custom py-12">
+        {/* Team Filter */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="mb-6"
+        >
+          <div className="flex gap-3 overflow-x-auto pb-2">
+            {teams.map((team) => (
+              <button
+                key={team.value}
+                onClick={() => setSelectedTeam(team.value)}
+                className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-all ${
+                  selectedTeam === team.value
+                    ? "bg-nvfc-primary text-white"
+                    : "bg-white text-gray-700 hover:bg-gray-100"
+                }`}
+              >
+                {team.label}
+              </button>
+            ))}
+          </div>
+        </motion.div>
+
         {/* Position Filter */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -124,6 +175,12 @@ export default function PlayersPage() {
 
         {/* Players Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {loading && (
+            <div className="col-span-full text-center text-gray-500">Loading players...</div>
+          )}
+          {!loading && filteredPlayers.length === 0 && (
+            <div className="col-span-full text-center text-gray-500">No players found.</div>
+          )}
           {filteredPlayers.map((player, index) => (
             <motion.div
               key={player.id}
@@ -135,7 +192,12 @@ export default function PlayersPage() {
                 <Card hover className="overflow-hidden">
                   {/* Player Image */}
                   <div className="aspect-square bg-gradient-to-br from-nvfc-primary to-nvfc-accent flex items-center justify-center text-white relative">
-                    <div className="text-6xl">⚽</div>
+                    {player.photoURL ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={player.photoURL} alt={player.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="text-6xl">⚽</div>
+                    )}
                     <div className="absolute top-4 right-4 w-12 h-12 bg-nvfc-secondary rounded-full flex items-center justify-center">
                       <span className="text-2xl font-bold text-nvfc-primary">
                         {player.number}
@@ -159,11 +221,13 @@ export default function PlayersPage() {
                       </div>
                       <div className="flex justify-between">
                         <span>Age:</span>
-                        <span className="font-medium">{player.age}</span>
+                        <span className="font-medium">{calculateAge(player.dob)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Height:</span>
-                        <span className="font-medium">{player.height}</span>
+                        <span className="font-medium">
+                          {player.heightCm ? `${player.heightCm} cm` : "-"}
+                        </span>
                       </div>
                     </div>
 

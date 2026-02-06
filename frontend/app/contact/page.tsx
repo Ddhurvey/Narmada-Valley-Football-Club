@@ -200,12 +200,14 @@ export default function ContactPage() {
         >
           <Card className="p-6">
             <h2 className="text-2xl font-bold text-nvfc-dark mb-6">Find Us</h2>
-            <div className="aspect-video bg-gradient-to-br from-nvfc-primary to-nvfc-accent rounded-lg flex items-center justify-center text-white">
-              <div className="text-center">
-                <div className="text-6xl mb-4">📍</div>
-                <p className="text-xl font-semibold">Narmada Stadium</p>
-                <p className="text-gray-200">Interactive map would be embedded here</p>
-              </div>
+            <div className="aspect-video rounded-lg overflow-hidden border">
+              <iframe
+                title="Narmada Stadium Map"
+                src="https://www.google.com/maps?q=Narmada%20Stadium&output=embed"
+                className="w-full h-full"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
             </div>
           </Card>
         </motion.div>

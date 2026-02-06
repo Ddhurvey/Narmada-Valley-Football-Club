@@ -1,70 +1,89 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
-// Mock player data
-const mockPlayerData: Record<string, any> = {
-  "1": {
-    id: "1",
-    name: "John Smith",
-    position: "Goalkeeper",
-    number: 1,
-    nationality: "India",
-    age: 28,
-    height: "6'2\"",
-    weight: "85kg",
-    joined: "2024-07-01",
-    contract: "2027-06-30",
-    bio: "Experienced goalkeeper with excellent shot-stopping ability and command of the penalty area. Known for his distribution and leadership qualities.",
-    stats: {
-      appearances: 45,
-      cleanSheets: 18,
-      saves: 142,
-      goalsConced: 32,
-    },
-    performanceData: [
+interface PlayerRow {
+  id: string;
+  name: string;
+  position: string;
+  number: string;
+  nationality: string;
+  dob: string;
+  heightCm: string;
+  weightKg: string;
+  photoURL?: string;
+  bio?: string;
+  joined?: string;
+  contract?: string;
+}
+
+const calculateAge = (dob?: string) => {
+  if (!dob) return "-";
+  const birthDate = new Date(dob);
+  if (Number.isNaN(birthDate.getTime())) return "-";
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age;
+};
+
+export default function PlayerProfilePage() {
+  const params = useParams();
+  const playerId = params.id as string;
+  const [player, setPlayer] = useState<PlayerRow | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadPlayer() {
+      const snap = await getDoc(doc(db, "players", playerId));
+      if (snap.exists()) {
+        setPlayer({ id: snap.id, ...(snap.data() as Omit<PlayerRow, "id">) });
+      } else {
+        setPlayer(null);
+      }
+      setLoading(false);
+    }
+    loadPlayer();
+  }, [playerId]);
+
+  const stats = useMemo(() => {
+    return {
+      appearances: 0,
+      cleanSheets: 0,
+      saves: 0,
+      goalsConced: 0,
+    };
+  }, []);
+
+  const performanceData = useMemo(() => {
+    return [
       { month: "Aug", rating: 7.2 },
       { month: "Sep", rating: 7.8 },
       { month: "Oct", rating: 8.1 },
       { month: "Nov", rating: 7.5 },
       { month: "Dec", rating: 8.3 },
       { month: "Jan", rating: 7.9 },
-    ],
-  },
-  "3": {
-    id: "3",
-    name: "Alex Rodriguez",
-    position: "Midfielder",
-    number: 8,
-    nationality: "Spain",
-    age: 24,
-    height: "5'10\"",
-    weight: "72kg",
-    joined: "2026-02-01",
-    contract: "2030-06-30",
-    bio: "Creative midfielder with excellent vision and passing ability. Capable of controlling the tempo of the game and creating chances for teammates.",
-    stats: {
-      appearances: 2,
-      goals: 1,
-      assists: 1,
-      passAccuracy: 89,
-    },
-    performanceData: [
-      { month: "Feb", rating: 8.5 },
-    ],
-  },
-};
+    ];
+  }, []);
 
-export default function PlayerProfilePage() {
-  const params = useParams();
-  const playerId = params.id as string;
-  const player = mockPlayerData[playerId];
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-nvfc-primary"></div>
+      </div>
+    );
+  }
 
   if (!player) {
     return (
@@ -97,8 +116,13 @@ export default function PlayerProfilePage() {
           >
             {/* Player Image */}
             <div className="relative">
-              <div className="w-48 h-48 bg-nvfc-secondary rounded-full flex items-center justify-center text-8xl">
-                ⚽
+              <div className="w-48 h-48 bg-nvfc-secondary rounded-full flex items-center justify-center text-8xl overflow-hidden">
+                {player.photoURL ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={player.photoURL} alt={player.name} className="w-full h-full object-cover" />
+                ) : (
+                  "⚽"
+                )}
               </div>
               <div className="absolute -bottom-4 -right-4 w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-lg">
                 <span className="text-3xl font-bold text-nvfc-primary">{player.number}</span>
@@ -116,15 +140,19 @@ export default function PlayerProfilePage() {
                 </div>
                 <div>
                   <span className="text-gray-300">Age:</span>
-                  <span className="ml-2 font-semibold">{player.age}</span>
+                  <span className="ml-2 font-semibold">{calculateAge(player.dob)}</span>
                 </div>
                 <div>
                   <span className="text-gray-300">Height:</span>
-                  <span className="ml-2 font-semibold">{player.height}</span>
+                  <span className="ml-2 font-semibold">
+                    {player.heightCm ? `${player.heightCm} cm` : "-"}
+                  </span>
                 </div>
                 <div>
                   <span className="text-gray-300">Weight:</span>
-                  <span className="ml-2 font-semibold">{player.weight}</span>
+                  <span className="ml-2 font-semibold">
+                    {player.weightKg ? `${player.weightKg} kg` : "-"}
+                  </span>
                 </div>
               </div>
             </div>
@@ -144,7 +172,7 @@ export default function PlayerProfilePage() {
             >
               <Card className="p-6">
                 <h2 className="text-2xl font-bold text-nvfc-dark mb-4">Biography</h2>
-                <p className="text-gray-700 leading-relaxed">{player.bio}</p>
+                <p className="text-gray-700 leading-relaxed">{player.bio || "No biography available yet."}</p>
               </Card>
             </motion.div>
 
@@ -157,7 +185,7 @@ export default function PlayerProfilePage() {
               <Card className="p-6">
                 <h2 className="text-2xl font-bold text-nvfc-dark mb-6">Season Statistics</h2>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                  {Object.entries(player.stats).map(([key, value], index) => (
+                  {Object.entries(stats).map(([key, value], index) => (
                     <motion.div
                       key={key}
                       initial={{ opacity: 0, scale: 0.8 }}
@@ -187,7 +215,7 @@ export default function PlayerProfilePage() {
               <Card className="p-6">
                 <h2 className="text-2xl font-bold text-nvfc-dark mb-6">Performance Rating</h2>
                 <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={player.performanceData}>
+                  <LineChart data={performanceData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" />
                     <YAxis domain={[0, 10]} />
@@ -218,11 +246,15 @@ export default function PlayerProfilePage() {
                 <div className="space-y-3 text-sm">
                   <div>
                     <span className="text-gray-600">Joined:</span>
-                    <p className="font-semibold">{new Date(player.joined).toLocaleDateString()}</p>
+                    <p className="font-semibold">
+                      {player.joined ? new Date(player.joined).toLocaleDateString() : "-"}
+                    </p>
                   </div>
                   <div>
                     <span className="text-gray-600">Contract Until:</span>
-                    <p className="font-semibold">{new Date(player.contract).toLocaleDateString()}</p>
+                    <p className="font-semibold">
+                      {player.contract ? new Date(player.contract).toLocaleDateString() : "-"}
+                    </p>
                   </div>
                 </div>
               </Card>

@@ -48,9 +48,14 @@ export default function AdminDashboard() {
 
   const adminSections = [
     { title: "Role Management", icon: "👥", href: "/admin/roles", color: "purple", adminOnly: true },
+    { title: "Announcement Bar", icon: "📢", href: "/admin/announcement", color: "red" },
     { title: "News & Articles", icon: "📰", href: "/admin/news", color: "blue" },
     { title: "Players", icon: "⚽", href: "/admin/players", color: "green" },
     { title: "Fixtures", icon: "📅", href: "/admin/fixtures", color: "orange" },
+    { title: "Records", icon: "📊", href: "/admin/records", color: "cyan" },
+    { title: "Tickets", icon: "🎟️", href: "/admin/tickets", color: "blue" },
+    { title: "Orders", icon: "🧾", href: "/admin/orders", color: "teal" },
+    { title: "Memberships", icon: "🪪", href: "/admin/memberships", color: "purple" },
     { title: "Products", icon: "🛍️", href: "/admin/products", color: "pink" },
     { title: "Media Manager", icon: "📸", href: "/admin/media", color: "teal" },
     { title: "Layouts", icon: "🎨", href: "/admin/layouts", color: "indigo" },

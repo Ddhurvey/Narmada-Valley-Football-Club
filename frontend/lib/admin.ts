@@ -13,7 +13,7 @@ import {
   addDoc,
 } from "firebase/firestore";
 import { db } from "./firebase";
-import { ROLES, Role, USER_STATUS, UserStatus } from "./roles";
+import { ROLES, Role, USER_STATUS, UserStatus, SUPER_ADMIN_EMAILS } from "./roles";
 
 async function withTimeout<T>(promise: Promise<T>, ms: number, fallbackValue: T): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout>;
@@ -59,6 +59,15 @@ export interface AuditLog {
   details?: string | Record<string, any>;
   timestamp: Timestamp;
   ipAddress?: string;
+}
+
+function isEmailWhitelisted(email?: string | null): boolean {
+  return !!email && SUPER_ADMIN_EMAILS.includes(email);
+}
+
+async function isActorSuperAdmin(actorUID: string, actorEmail?: string | null): Promise<boolean> {
+  if (isEmailWhitelisted(actorEmail)) return true;
+  return await isSuperAdmin(actorUID);
 }
 
 /**
@@ -310,14 +319,15 @@ export async function completeTransferRequest(
  */
 export async function createAdmin(
   actorUID: string,
+  actorEmail: string | null,
   targetUID: string,
   targetEmail: string,
   targetDisplayName: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
     // Verify actor is Super Admin
-    const isActorSuperAdmin = await isSuperAdmin(actorUID);
-    if (!isActorSuperAdmin) {
+    const actorIsSuperAdmin = await isActorSuperAdmin(actorUID, actorEmail);
+    if (!actorIsSuperAdmin) {
       return { success: false, error: "Only Super Admin can create admins" };
     }
     
@@ -376,18 +386,19 @@ export async function createAdmin(
  */
 export async function removeAdmin(
   actorUID: string,
+  actorEmail: string | null,
   targetUID: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
     // Verify actor is Super Admin
-    const isActorSuperAdmin = await isSuperAdmin(actorUID);
-    if (!isActorSuperAdmin) {
+    const actorIsSuperAdmin = await isActorSuperAdmin(actorUID, actorEmail);
+    if (!actorIsSuperAdmin) {
       return { success: false, error: "Only Super Admin can remove admins" };
     }
     
     // Prevent removing Super Admin
-    const isTargetSuperAdmin = await isSuperAdmin(targetUID);
-    if (isTargetSuperAdmin) {
+    const targetProfile = await getUserProfile(targetUID);
+    if (targetProfile?.role === ROLES.SUPER_ADMIN) {
       return { success: false, error: "Cannot remove Super Admin role" };
     }
     
@@ -420,18 +431,19 @@ export async function removeAdmin(
  */
 export async function blockUser(
   actorUID: string,
+  actorEmail: string | null,
   targetUID: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
     // Verify actor is Super Admin
-    const isActorSuperAdmin = await isSuperAdmin(actorUID);
-    if (!isActorSuperAdmin) {
+    const actorIsSuperAdmin = await isActorSuperAdmin(actorUID, actorEmail);
+    if (!actorIsSuperAdmin) {
       return { success: false, error: "Only Super Admin can block users" };
     }
     
     // Prevent blocking Super Admin
-    const isTargetSuperAdmin = await isSuperAdmin(targetUID);
-    if (isTargetSuperAdmin) {
+    const targetProfile = await getUserProfile(targetUID);
+    if (targetProfile?.role === ROLES.SUPER_ADMIN) {
       return { success: false, error: "Cannot block Super Admin" };
     }
     
@@ -463,12 +475,13 @@ export async function blockUser(
  */
 export async function unblockUser(
   actorUID: string,
+  actorEmail: string | null,
   targetUID: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
     // Verify actor is Super Admin
-    const isActorSuperAdmin = await isSuperAdmin(actorUID);
-    if (!isActorSuperAdmin) {
+    const actorIsSuperAdmin = await isActorSuperAdmin(actorUID, actorEmail);
+    if (!actorIsSuperAdmin) {
       return { success: false, error: "Only Super Admin can unblock users" };
     }
     

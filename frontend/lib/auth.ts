@@ -15,6 +15,32 @@ import { ROLES, Role, USER_STATUS, SUPER_ADMIN_EMAILS } from "./roles";
 import { setSuperAdminUID, isSuperAdmin, logAudit } from "./admin";
 import type { UserProfile } from "./admin";
 
+export async function ensureUserProfile(user: User): Promise<UserProfile | null> {
+  try {
+    const existing = await getDoc(doc(db, "users", user.uid));
+    if (existing.exists()) {
+      return existing.data() as UserProfile;
+    }
+
+    const profile: UserProfile = {
+      uid: user.uid,
+      email: user.email || "",
+      displayName: user.displayName || "User",
+      photoURL: user.photoURL || undefined,
+      role: ROLES.USER,
+      status: USER_STATUS.ACTIVE,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    };
+
+    await setDoc(doc(db, "users", user.uid), profile);
+    return profile;
+  } catch (error) {
+    console.warn("Could not ensure user profile:", error);
+    return null;
+  }
+}
+
 /**
  * Sign up a new user with email/password
  * First user becomes Super Admin automatically

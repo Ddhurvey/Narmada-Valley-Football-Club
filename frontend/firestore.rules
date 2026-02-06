@@ -17,9 +17,7 @@ service cloud.firestore {
 
     function isWhitelistedEmail() {
       return isAuthenticated() && request.auth.token.email in [
-        'devendradhur85@gmail.com',
-        'admin@nvfc.com',
-        'devendra25@navgurukul.org'
+        'devendradhur85@gmail.com'
       ];
     }
     
@@ -83,6 +81,15 @@ service cloud.firestore {
                         request.resource.data.role == 'USER' ||
                         (request.resource.data.role == 'SUPER_ADMIN' && isWhitelistedEmail())
                       );
+
+      // Super Admin can create admin/user profiles
+      allow create: if isSuperAdmin() &&
+                      request.resource.data.status == 'active' &&
+                      (
+                        request.resource.data.role == 'ADMIN' ||
+                        request.resource.data.role == 'USER' ||
+                        request.resource.data.role == 'SUPER_ADMIN'
+                      );
       
       // Users can update their own profile (but not role or status)
       allow update: if isAuthenticated() && 
@@ -92,14 +99,10 @@ service cloud.firestore {
       
       // CRITICAL: Prevent role escalation
       // Only Super Admin can change roles
-      allow update: if isSuperAdmin() && 
-                      // Cannot modify Super Admin's role
-                      userId != getSuperAdminUID();
+      allow update: if isSuperAdmin();
       
       // Only Super Admin can block/unblock users
-      allow update: if isSuperAdmin() && 
-                      // Cannot block Super Admin
-                      userId != getSuperAdminUID();
+      allow update: if isSuperAdmin();
       
       // No one can delete users (soft delete via status instead)
       allow delete: if false;
@@ -175,6 +178,30 @@ service cloud.firestore {
       allow read: if true;
       
       // Only admins can manage players
+      allow create, update, delete: if isAdmin() && isActiveUser();
+    }
+
+    // Records
+    match /records/{recordId} {
+      // Anyone can read records
+      allow read: if true;
+
+      // Only admins can manage records
+      allow create, update, delete: if isAdmin() && isActiveUser();
+    }
+
+    // Products (Store)
+    match /products/{productId} {
+      // Anyone can read products
+      allow read: if true;
+      
+      // Only admins can manage products
+      allow create, update, delete: if isAdmin() && isActiveUser();
+    }
+
+    // Announcements (Important message banner)
+    match /announcements/{docId} {
+      allow read: if true;
       allow create, update, delete: if isAdmin() && isActiveUser();
     }
     

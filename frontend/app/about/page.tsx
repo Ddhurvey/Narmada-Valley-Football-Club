@@ -115,6 +115,35 @@ export default function AboutPage() {
         </div>
       </section>
 
+      {/* Teams & Academies */}
+      <section className="section-padding bg-gray-50">
+        <div className="container-custom">
+          <h2 className="text-4xl font-bold text-nvfc-dark mb-12 text-center">Teams & Academies</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[
+              { title: "Senior Boys Team", desc: "First-team squad competing in the top division." },
+              { title: "Senior Girls Team", desc: "Women’s squad representing NVFC in regional and state competitions." },
+              { title: "U18 Team", desc: "Development pathway focused on elite youth training and match exposure." },
+              { title: "U15 Team", desc: "Skill-building, tactical education, and high‑intensity training." },
+              { title: "U14 Team", desc: "Foundation program for early talent identification and growth." },
+            ].map((team, index) => (
+              <motion.div
+                key={team.title}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.1 }}
+              >
+                <Card className="p-6 h-full">
+                  <h3 className="text-xl font-bold text-nvfc-dark mb-2">{team.title}</h3>
+                  <p className="text-gray-600">{team.desc}</p>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Management Team */}
       <section className="section-padding bg-gray-50">
         <div className="container-custom">

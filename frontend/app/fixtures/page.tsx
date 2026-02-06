@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import { motion } from "framer-motion";
 import { formatDate } from "@/lib/utils";
+import { collection, getDocs, orderBy, query } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 // Team logos mapping
 const teamLogos: Record<string, string> = {
@@ -15,65 +17,44 @@ const teamLogos: Record<string, string> = {
   "Champions FC": "🏆",
 };
 
-// Mock fixtures data
-const mockFixtures = [
-  {
-    id: "1",
-    homeTeam: "NVFC",
-    awayTeam: "Rivals FC",
-    homeScore: null,
-    awayScore: null,
-    date: "2026-02-10",
-    time: "15:00",
-    venue: "Narmada Stadium",
-    competition: "League",
-    status: "upcoming",
-  },
-  {
-    id: "2",
-    homeTeam: "City FC",
-    awayTeam: "NVFC",
-    homeScore: 1,
-    awayScore: 2,
-    date: "2026-02-03",
-    time: "18:30",
-    venue: "City Arena",
-    competition: "League",
-    status: "completed",
-  },
-  {
-    id: "3",
-    homeTeam: "NVFC",
-    awayTeam: "United FC",
-    homeScore: 3,
-    awayScore: 1,
-    date: "2026-01-27",
-    time: "20:00",
-    venue: "Narmada Stadium",
-    competition: "Cup",
-    status: "completed",
-  },
-  {
-    id: "4",
-    homeTeam: "Champions FC",
-    awayTeam: "NVFC",
-    homeScore: 2,
-    awayScore: 2,
-    date: "2026-01-20",
-    time: "15:00",
-    venue: "Champions Ground",
-    competition: "League",
-    status: "completed",
-  },
-];
+interface FixtureRow {
+  id: string;
+  homeTeam: string;
+  awayTeam: string;
+  homeLogoUrl?: string;
+  awayLogoUrl?: string;
+  homeScore?: number | null;
+  awayScore?: number | null;
+  date: string;
+  time: string;
+  venue: string;
+  competition: string;
+  status: "upcoming" | "completed";
+}
 
 export default function FixturesPage() {
   const [filter, setFilter] = useState<"all" | "upcoming" | "completed">("all");
+  const [fixtures, setFixtures] = useState<FixtureRow[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredFixtures = mockFixtures.filter((fixture) => {
-    if (filter === "all") return true;
-    return fixture.status === filter;
-  });
+  useEffect(() => {
+    async function loadFixtures() {
+      const fixturesQuery = query(collection(db, "fixtures"), orderBy("date", "desc"));
+      const snapshot = await getDocs(fixturesQuery);
+      const rows = snapshot.docs.map((d) => ({
+        id: d.id,
+        ...(d.data() as Omit<FixtureRow, "id">),
+      }));
+      setFixtures(rows);
+      setLoading(false);
+    }
+    loadFixtures();
+  }, []);
+
+  const filteredFixtures = useMemo(() => {
+    if (filter === "all") return fixtures;
+    return fixtures.filter((fixture) => fixture.status === filter);
+  }, [fixtures, filter]);
 
   const getResultBadge = (fixture: any) => {
     if (fixture.status === "upcoming") return null;
@@ -91,10 +72,14 @@ export default function FixturesPage() {
     }
   };
 
-  const TeamLogo = ({ team }: { team: string }) => {
-    const logo = teamLogos[team] || "⚽";
-    
-    if (logo.startsWith('/')) {
+  const TeamLogo = ({ team, logoUrl }: { team: string; logoUrl?: string }) => {
+    const logo = logoUrl || teamLogos[team] || "⚽";
+
+    if (logo.startsWith("/")) {
+      /* eslint-disable-next-line @next/next/no-img-element */
+      return <img src={logo} alt={`${team} logo`} className="w-10 h-10 object-contain" />;
+    }
+    if (logo.startsWith("http")) {
       /* eslint-disable-next-line @next/next/no-img-element */
       return <img src={logo} alt={`${team} logo`} className="w-10 h-10 object-contain" />;
     }
@@ -149,6 +134,12 @@ export default function FixturesPage() {
 
         {/* Fixtures List */}
         <div className="space-y-6">
+          {loading && (
+            <div className="text-center text-gray-500">Loading fixtures...</div>
+          )}
+          {!loading && filteredFixtures.length === 0 && (
+            <div className="text-center text-gray-500">No fixtures found.</div>
+          )}
           {filteredFixtures.map((fixture, index) => (
             <motion.div
               key={fixture.id}
@@ -174,7 +165,7 @@ export default function FixturesPage() {
                     <div className="flex items-center justify-between mb-2">
                       {/* Home Team */}
                       <div className="flex items-center gap-3 flex-1">
-                        <TeamLogo team={fixture.homeTeam} />
+                        <TeamLogo team={fixture.homeTeam} logoUrl={fixture.homeLogoUrl} />
                         <span
                           className={`text-lg font-bold ${
                             fixture.homeTeam === "NVFC" ? "text-nvfc-primary" : "text-gray-800"
@@ -202,7 +193,7 @@ export default function FixturesPage() {
                         >
                           {fixture.awayTeam}
                         </span>
-                        <TeamLogo team={fixture.awayTeam} />
+                        <TeamLogo team={fixture.awayTeam} logoUrl={fixture.awayLogoUrl} />
                       </div>
                     </div>
                     <div className="text-sm text-gray-600 text-center">

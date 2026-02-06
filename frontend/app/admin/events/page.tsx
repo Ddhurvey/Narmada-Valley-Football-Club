@@ -45,6 +45,16 @@ export default function EventsPage() {
     const startDate = new Date(formData.get("startDate") as string);
     const endDate = new Date(formData.get("endDate") as string);
 
+    const now = new Date();
+    if (startDate < now) {
+      alert("Start date must be in the future.");
+      return;
+    }
+    if (endDate <= startDate) {
+      alert("End date must be after start date.");
+      return;
+    }
+
     const result = await createEvent({
       name: formData.get("name") as string,
       description: formData.get("description") as string,
@@ -105,8 +115,20 @@ export default function EventsPage() {
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <Input label="Start Date" name="startDate" type="datetime-local" required />
-                  <Input label="End Date" name="endDate" type="datetime-local" required />
+                  <Input
+                    label="Start Date"
+                    name="startDate"
+                    type="datetime-local"
+                    required
+                    min={new Date().toISOString().slice(0, 16)}
+                  />
+                  <Input
+                    label="End Date"
+                    name="endDate"
+                    type="datetime-local"
+                    required
+                    min={new Date().toISOString().slice(0, 16)}
+                  />
                 </div>
                 <Button type="submit" variant="primary" size="lg" className="w-full">
                   Create Event

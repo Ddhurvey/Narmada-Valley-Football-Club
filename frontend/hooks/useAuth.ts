@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { User, onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { getUserProfile, checkIsSuperAdmin } from "@/lib/auth";
+import { getUserProfile, checkIsSuperAdmin, ensureUserProfile } from "@/lib/auth";
 import { ROLES, Role, hasPermission, Permission, getRolePermissions, SUPER_ADMIN_EMAILS } from "@/lib/roles";
 import type { UserProfile } from "@/lib/admin";
 
@@ -33,7 +33,10 @@ export function useAuth() {
       if (user) {
         try {
           // Fetch user profile and role
-          const profile = await getUserProfile(user.uid);
+          let profile = await getUserProfile(user.uid);
+          if (!profile) {
+            profile = await ensureUserProfile(user);
+          }
           
           // Whitelist Check (Fast Path)
           const isWhitelisted = user.email && SUPER_ADMIN_EMAILS.includes(user.email);

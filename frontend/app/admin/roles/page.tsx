@@ -132,6 +132,7 @@ export default function RoleManagementPage() {
     setActionLoading(targetUser.uid);
     const result = await createAdmin(
       user.uid,
+      user.email,
       targetUser.uid,
       targetUser.email,
       targetUser.displayName
@@ -153,7 +154,7 @@ export default function RoleManagementPage() {
     if (!confirmed) return;
 
     setActionLoading(targetUser.uid);
-    const result = await removeAdmin(user.uid, targetUser.uid);
+    const result = await removeAdmin(user.uid, user.email, targetUser.uid);
 
     if (result.success) {
       await loadUsers();
@@ -171,7 +172,7 @@ export default function RoleManagementPage() {
     if (!confirmed) return;
 
     setActionLoading(targetUser.uid);
-    const result = await blockUser(user.uid, targetUser.uid);
+    const result = await blockUser(user.uid, user.email, targetUser.uid);
 
     if (result.success) {
       await loadUsers();
@@ -189,7 +190,7 @@ export default function RoleManagementPage() {
     if (!confirmed) return;
 
     setActionLoading(targetUser.uid);
-    const result = await unblockUser(user.uid, targetUser.uid);
+    const result = await unblockUser(user.uid, user.email, targetUser.uid);
 
     if (result.success) {
       await loadUsers();
@@ -415,9 +416,18 @@ export default function RoleManagementPage() {
                       <tr key={targetUser.uid} className="hover:bg-gray-50">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-nvfc-primary rounded-full flex items-center justify-center text-white font-bold">
-                              {targetUser.displayName[0].toUpperCase()}
-                            </div>
+                            {targetUser.photoURL ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={targetUser.photoURL}
+                                alt={targetUser.displayName}
+                                className="w-10 h-10 rounded-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-10 h-10 bg-nvfc-primary rounded-full flex items-center justify-center text-white font-bold">
+                                {targetUser.displayName[0].toUpperCase()}
+                              </div>
+                            )}
                             <div>
                               <div className="font-semibold text-gray-900">
                                 {targetUser.displayName}

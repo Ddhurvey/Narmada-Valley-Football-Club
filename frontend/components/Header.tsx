@@ -5,6 +5,8 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import Button from "./ui/Button";
+import { doc, onSnapshot } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 interface LiveScore {
   homeTeam: string;
@@ -15,11 +17,23 @@ interface LiveScore {
   isLive: boolean;
 }
 
+interface AnnouncementConfig {
+  enabled: boolean;
+  message: string;
+  style: "static" | "scroll";
+  bgColor: string;
+  textColor: string;
+  speedSec: number;
+  startAt?: string;
+  endAt?: string;
+}
+
 const Header: React.FC = () => {
   const { user, isAdmin } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [liveScore, setLiveScore] = useState<LiveScore | null>(null);
+  const [announcement, setAnnouncement] = useState<AnnouncementConfig | null>(null);
 
   // Mock live score - will be replaced with Socket.IO
   useEffect(() => {
@@ -41,11 +55,47 @@ const Header: React.FC = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, "announcements", "global"), (snap) => {
+      if (snap.exists()) {
+        setAnnouncement(snap.data() as AnnouncementConfig);
+      } else {
+        setAnnouncement(null);
+      }
+    });
+    return () => unsub();
+  }, []);
+
+  const shouldShowAnnouncement = (() => {
+    if (!announcement?.enabled || !announcement?.message) return false;
+    const now = new Date();
+    if (announcement.startAt) {
+      const start = new Date(announcement.startAt);
+      if (now < start) return false;
+    }
+    if (announcement.endAt) {
+      const end = new Date(announcement.endAt);
+      if (now > end) return false;
+    }
+    return true;
+  })();
+
   const navLinks = [
     { href: "/", label: "Home" },
     { href: "/news", label: "News" },
     { href: "/fixtures", label: "Fixtures" },
-    { href: "/players", label: "Squad" },
+    { href: "/records", label: "Records" },
+    {
+      href: "/players",
+      label: "Squad",
+      children: [
+        { href: "/players?team=boys", label: "Boys Team" },
+        { href: "/players?team=girls", label: "Girls Team" },
+        { href: "/players?team=u18", label: "U18" },
+        { href: "/players?team=u15", label: "U15" },
+        { href: "/players?team=u14", label: "U14" },
+      ],
+    },
     { href: "/tickets", label: "Tickets" },
     { href: "/store", label: "Store" },
     { href: "/about", label: "Club" },
@@ -53,22 +103,43 @@ const Header: React.FC = () => {
 
   return (
     <>
-      {/* Live Score Ticker */}
-      {liveScore && liveScore.isLive && (
-        <div className="bg-nvfc-accent text-white py-2 overflow-hidden">
+      {/* Announcement / Live Score */}
+      {shouldShowAnnouncement ? (
+        <div
+          className="py-2 overflow-hidden"
+          style={{ backgroundColor: announcement?.bgColor || "#e63946", color: announcement?.textColor || "#ffffff" }}
+        >
           <div className="container-custom">
-            <div className="flex items-center justify-center gap-4 text-sm font-semibold">
-              <span className="flex items-center gap-2">
-                <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
-                LIVE
-              </span>
-              <span>
-                {liveScore.homeTeam} {liveScore.homeScore} - {liveScore.awayScore} {liveScore.awayTeam}
-              </span>
-              <span className="text-xs opacity-90">{liveScore.minute}&apos;</span>
-            </div>
+            {announcement?.style === "scroll" ? (
+              <div
+                className="announcement-marquee text-sm font-semibold"
+                style={{ animationDuration: `${Math.max(5, announcement?.speedSec || 20)}s` }}
+              >
+                {announcement.message}
+              </div>
+            ) : (
+              <div className="text-sm font-semibold text-center">{announcement?.message}</div>
+            )}
           </div>
         </div>
+      ) : (
+        liveScore &&
+        liveScore.isLive && (
+          <div className="bg-nvfc-accent text-white py-2 overflow-hidden">
+            <div className="container-custom">
+              <div className="flex items-center justify-center gap-4 text-sm font-semibold">
+                <span className="flex items-center gap-2">
+                  <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                  LIVE
+                </span>
+                <span>
+                  {liveScore.homeTeam} {liveScore.homeScore} - {liveScore.awayScore} {liveScore.awayTeam}
+                </span>
+                <span className="text-xs opacity-90">{liveScore.minute}&apos;</span>
+              </div>
+            </div>
+          </div>
+        )
       )}
 
       {/* Main Header */}
@@ -101,16 +172,41 @@ const Header: React.FC = () => {
 
             {/* Desktop Navigation */}
             <div className="hidden lg:flex items-center gap-8">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="text-nvfc-dark hover:text-nvfc-primary font-medium transition-colors relative group"
-                >
-                  {link.label}
-                  <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-nvfc-primary group-hover:w-full transition-all duration-300" />
-                </Link>
-              ))}
+              {navLinks.map((link) =>
+                link.children ? (
+                  <div key={link.href} className="relative group">
+                    <Link
+                      href={link.href}
+                      className="text-nvfc-dark hover:text-nvfc-primary font-medium transition-colors relative"
+                    >
+                      {link.label}
+                      <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-nvfc-primary group-hover:w-full transition-all duration-300" />
+                    </Link>
+                    <div className="absolute left-0 top-full mt-2 hidden group-hover:block">
+                      <div className="bg-white shadow-lg rounded-lg border border-gray-100 py-2 min-w-[180px]">
+                        {link.children.map((child) => (
+                          <Link
+                            key={child.href}
+                            href={child.href}
+                            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                          >
+                            {child.label}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className="text-nvfc-dark hover:text-nvfc-primary font-medium transition-colors relative group"
+                  >
+                    {link.label}
+                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-nvfc-primary group-hover:w-full transition-all duration-300" />
+                  </Link>
+                )
+              )}
             </div>
 
             {/* User Actions */}
@@ -181,16 +277,40 @@ const Header: React.FC = () => {
                 className="lg:hidden mt-4 pt-4 border-t border-gray-200"
               >
                 <div className="flex flex-col gap-4">
-                  {navLinks.map((link) => (
-                    <Link
-                      key={link.href}
-                      href={link.href}
-                      className="text-nvfc-dark hover:text-nvfc-primary font-medium transition-colors py-2"
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      {link.label}
-                    </Link>
-                  ))}
+                  {navLinks.map((link) =>
+                    link.children ? (
+                      <div key={link.href} className="flex flex-col gap-2">
+                        <Link
+                          href={link.href}
+                          className="text-nvfc-dark hover:text-nvfc-primary font-medium transition-colors py-2"
+                          onClick={() => setIsMenuOpen(false)}
+                        >
+                          {link.label}
+                        </Link>
+                        <div className="ml-3 flex flex-col gap-2">
+                          {link.children.map((child) => (
+                            <Link
+                              key={child.href}
+                              href={child.href}
+                              className="text-gray-600 hover:text-nvfc-primary text-sm transition-colors"
+                              onClick={() => setIsMenuOpen(false)}
+                            >
+                              {child.label}
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <Link
+                        key={link.href}
+                        href={link.href}
+                        className="text-nvfc-dark hover:text-nvfc-primary font-medium transition-colors py-2"
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        {link.label}
+                      </Link>
+                    )
+                  )}
                   <div className="flex flex-col gap-2 pt-4 border-t border-gray-200">
                     {user ? (
                       <>

@@ -1,29 +1,48 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import { motion } from "framer-motion";
+import { collection, getDocs, orderBy, query } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
-const products = [
-  { id: "1", name: "Home Jersey 2026", price: 4999, image: "👕", category: "Jerseys" },
-  { id: "2", name: "Away Jersey 2026", price: 4999, image: "👕", category: "Jerseys" },
-  { id: "3", name: "NVFC Scarf", price: 799, image: "🧣", category: "Accessories" },
-  { id: "4", name: "Training Kit", price: 3499, image: "👔", category: "Training" },
-  { id: "5", name: "NVFC Cap", price: 599, image: "🧢", category: "Accessories" },
-  { id: "6", name: "Football", price: 1299, image: "⚽", category: "Equipment" },
-];
+interface ProductRow {
+  id: string;
+  name: string;
+  price: string;
+  category: string;
+  imageUrl?: string;
+  status: "active" | "out_of_stock";
+}
 
 export default function StorePage() {
   const [cart, setCart] = useState<any[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [products, setProducts] = useState<ProductRow[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const categories = ["All", "Jerseys", "Accessories", "Training", "Equipment"];
 
-  const filteredProducts =
-    selectedCategory === "All"
+  useEffect(() => {
+    async function loadProducts() {
+      const productsQuery = query(collection(db, "products"), orderBy("createdAt", "desc"));
+      const snapshot = await getDocs(productsQuery);
+      const rows = snapshot.docs.map((d) => ({
+        id: d.id,
+        ...(d.data() as Omit<ProductRow, "id">),
+      }));
+      setProducts(rows.filter((p) => p.status === "active"));
+      setLoading(false);
+    }
+    loadProducts();
+  }, []);
+
+  const filteredProducts = useMemo(() => {
+    return selectedCategory === "All"
       ? products
       : products.filter((p) => p.category === selectedCategory);
+  }, [products, selectedCategory]);
 
   const addToCart = (product: any) => {
     setCart([...cart, product]);
@@ -60,6 +79,12 @@ export default function StorePage() {
 
         {/* Products Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {loading && (
+            <div className="col-span-full text-center text-gray-500">Loading products...</div>
+          )}
+          {!loading && filteredProducts.length === 0 && (
+            <div className="col-span-full text-center text-gray-500">No products available.</div>
+          )}
           {filteredProducts.map((product, index) => (
             <motion.div
               key={product.id}
@@ -68,8 +93,13 @@ export default function StorePage() {
               transition={{ delay: index * 0.1 }}
             >
               <Card hover className="overflow-hidden h-full">
-                <div className="aspect-square bg-gradient-to-br from-nvfc-primary to-nvfc-accent flex items-center justify-center text-8xl">
-                  {product.image}
+                <div className="aspect-square bg-gradient-to-br from-nvfc-primary to-nvfc-accent flex items-center justify-center text-8xl overflow-hidden">
+                  {product.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
+                  ) : (
+                    "🛍️"
+                  )}
                 </div>
                 <div className="p-6">
                   <span className="text-xs text-gray-500">{product.category}</span>
