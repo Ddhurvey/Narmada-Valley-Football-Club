@@ -48,6 +48,7 @@ export default function AdminDashboard() {
 
   const adminSections = [
     { title: "Role Management", icon: "👥", href: "/admin/roles", color: "purple", adminOnly: true },
+    { title: "AI Tools", icon: "🤖", href: "/admin/ai-tools", color: "indigo" },
     { title: "Announcement Bar", icon: "📢", href: "/admin/announcement", color: "red" },
     { title: "Navigation", icon: "🧭", href: "/admin/navigation", color: "indigo" },
     { title: "News & Articles", icon: "📰", href: "/admin/news", color: "blue" },

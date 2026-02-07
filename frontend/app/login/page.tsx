@@ -15,11 +15,25 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [info, setInfo] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [requiresOtp, setRequiresOtp] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [otpLoading, setOtpLoading] = useState(false);
+
+  const resetOtpState = () => {
+    setRequiresOtp(false);
+    setOtpCode("");
+    setOtpSent(false);
+    setOtpVerified(false);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setInfo("");
     setIsLoading(true);
 
     // Basic validation
@@ -33,14 +47,41 @@ export default function LoginPage() {
 
 
     try {
+      const statusResponse = await fetch(`/api/auth/otp/status?email=${encodeURIComponent(email)}`);
+      const statusData = await statusResponse.json();
+      if (statusData?.requiresOtp && !otpVerified) {
+        setRequiresOtp(true);
+        setError("OTP verification required. Please verify your email.");
+        setIsLoading(false);
+        return;
+      }
+
       const result = await signIn(email, password);
       if (result.success) {
+        await fetch("/api/auth/otp/success", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email }),
+        });
         if (email && SUPER_ADMIN_EMAILS.includes(email)) {
             router.push("/admin");
         } else {
             router.push("/dashboard");
         }
       } else {
+        const failResponse = await fetch("/api/auth/otp/fail", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email }),
+        });
+        const failData = await failResponse.json();
+        if (failData?.requiresOtp) {
+          setRequiresOtp(true);
+          setOtpVerified(false);
+          setError("Too many attempts. OTP verification required.");
+          setIsLoading(false);
+          return;
+        }
         setError(result.error || "Failed to sign in. Please check your credentials.");
       }
     } catch (err: any) {
@@ -50,8 +91,69 @@ export default function LoginPage() {
     }
   };
 
+  const handleSendOtp = async () => {
+    if (!email.trim()) {
+      setError("Please enter your email first.");
+      return;
+    }
+
+    setOtpLoading(true);
+    setError("");
+    setInfo("");
+    try {
+      const response = await fetch("/api/auth/otp/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data?.error || "Failed to send OTP.");
+      } else {
+        setOtpSent(true);
+        setInfo("OTP sent to your email.");
+      }
+    } catch (err) {
+      setError("Failed to send OTP.");
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!otpCode.trim()) {
+      setError("Please enter the OTP code.");
+      return;
+    }
+
+    setOtpLoading(true);
+    setError("");
+    setInfo("");
+    try {
+      const response = await fetch("/api/auth/otp/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, code: otpCode.trim() }),
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data?.error || "OTP verification failed.");
+      } else {
+        setOtpVerified(true);
+        setInfo("OTP verified. You can sign in now.");
+      }
+    } catch (err) {
+      setError("OTP verification failed.");
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
   const handleGoogleSignIn = async () => {
     setError("");
+    setInfo("");
     setIsLoading(true);
     try {
       const result = await signInWithGoogle();
@@ -98,12 +200,20 @@ export default function LoginPage() {
                 {error}
               </div>
             )}
+            {info && (
+              <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm">
+                {info}
+              </div>
+            )}
 
             <Input
               label="Email Address"
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                resetOtpState();
+              }}
               placeholder="your.email@example.com"
               required
               disabled={isLoading}
@@ -118,6 +228,37 @@ export default function LoginPage() {
               required
               disabled={isLoading}
             />
+
+            {requiresOtp && (
+              <div className="space-y-3">
+                <Input
+                  label="OTP Code"
+                  type="text"
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value)}
+                  placeholder="Enter 6-digit code"
+                  disabled={isLoading || otpLoading}
+                />
+                <div className="flex flex-wrap gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleSendOtp}
+                    isLoading={otpLoading}
+                  >
+                    {otpSent ? "Resend OTP" : "Send OTP"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={handleVerifyOtp}
+                    isLoading={otpLoading}
+                  >
+                    Verify OTP
+                  </Button>
+                </div>
+              </div>
+            )}
 
             <div className="flex items-center justify-between text-sm">
               <label className="flex items-center gap-2 cursor-pointer">
@@ -138,6 +279,7 @@ export default function LoginPage() {
               size="lg"
               className="w-full"
               isLoading={isLoading}
+              disabled={requiresOtp && !otpVerified}
             >
               Sign In
             </Button>

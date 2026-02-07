@@ -160,6 +160,26 @@ export async function signIn(email: string, password: string) {
 }
 
 /**
+ * Send password reset email
+ */
+export async function sendResetEmail(email: string) {
+  try {
+    await sendPasswordResetEmail(auth, email);
+    return { success: true };
+  } catch (error: any) {
+    let errorMessage = "Failed to send password reset email";
+    if (error.code === "auth/user-not-found") {
+      errorMessage = "No account found for this email";
+    } else if (error.code === "auth/invalid-email") {
+      errorMessage = "Invalid email address";
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    return { success: false, error: errorMessage };
+  }
+}
+
+/**
  * Sign in with Google
  */
 // Helper to timeout promises (prevent hanging on blocked connections)

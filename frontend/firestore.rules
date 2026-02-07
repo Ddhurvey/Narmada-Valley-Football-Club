@@ -222,6 +222,13 @@ service cloud.firestore {
       allow read: if true;
       allow create, update, delete: if isAdmin() && isActiveUser();
     }
+
+    // AI Outputs (Admin-only library)
+    match /aiOutputs/{docId} {
+      allow read: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow create: if isAdmin() && isActiveUser();
+      allow update, delete: if isSuperAdmin();
+    }
     
     // Tickets
     match /tickets/{ticketId} {
